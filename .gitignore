@@ -1,0 +1,33 @@
+# 编译产物
+target/
+*.class
+*.jar
+*.war
+
+# IDE配置
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+*.swp
+*.swo
+
+# 依赖包
+node_modules/
+
+# 日志
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.bak
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 上传的文件（不提交到仓库）
+src/main/webapp/uploads/
