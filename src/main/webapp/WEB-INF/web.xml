@@ -43,6 +43,19 @@
         <filter-name>AuthFilter</filter-name>
         <url-pattern>/article/delete</url-pattern>
     </filter-mapping>
+    <!-- 上传接口会写入服务器文件系统，必须复用登录态边界，避免匿名用户上传任意文件 -->
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/article/uploadCover</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/article/uploadFile</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/article/batchUpload</url-pattern>
+    </filter-mapping>
     <filter-mapping>
         <filter-name>AuthFilter</filter-name>
         <url-pattern>/comment/*</url-pattern>
@@ -58,6 +71,11 @@
     <filter-mapping>
         <filter-name>AdminFilter</filter-name>
         <url-pattern>/admin/*</url-pattern>
+    </filter-mapping>
+    <!-- 导出包含全站文章数据，只允许后台管理员访问 -->
+    <filter-mapping>
+        <filter-name>AdminFilter</filter-name>
+        <url-pattern>/article/export</url-pattern>
     </filter-mapping>
 
     <!-- ================================================ -->
