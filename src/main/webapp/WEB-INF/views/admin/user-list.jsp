@@ -164,6 +164,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/main.js"></script>
     <script>
+        const csrfToken = '${csrfToken}';
+
         function toggleStatus(userId, status) {
             var action = status === 0 ? '禁用' : '启用';
             if (!confirm('确定要' + action + '该用户吗？')) {
@@ -175,7 +177,9 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'id=' + userId + '&status=' + status
+                body: 'id=' + encodeURIComponent(userId)
+                    + '&status=' + encodeURIComponent(status)
+                    + '&csrfToken=' + encodeURIComponent(csrfToken)
             })
             .then(response => response.json())
             .then(data => {

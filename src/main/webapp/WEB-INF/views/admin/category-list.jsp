@@ -124,6 +124,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/main.js"></script>
     <script>
+        const csrfToken = '${csrfToken}';
+
         function deleteCategory(id, articleCount) {
             var message = '确定要删除该分类吗？';
             if (articleCount > 0) {
@@ -139,7 +141,8 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'id=' + id
+                body: 'id=' + encodeURIComponent(id)
+                    + '&csrfToken=' + encodeURIComponent(csrfToken)
             })
             .then(response => response.json())
             .then(data => {

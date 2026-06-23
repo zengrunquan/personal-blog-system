@@ -10,6 +10,7 @@ import com.blog.service.impl.ArticleServiceImpl;
 import com.blog.service.impl.CategoryServiceImpl;
 import com.blog.service.impl.UserServiceImpl;
 import com.blog.util.PageUtil;
+import com.blog.util.StringUtil;
 import com.google.gson.Gson;
 
 import javax.servlet.ServletException;
@@ -76,6 +77,11 @@ public class AdminServlet extends HttpServlet {
             return;
         }
 
+        if (!verifyCsrfToken(request)) {
+            handleInvalidCsrfToken(request, response, pathInfo);
+            return;
+        }
+
         switch (pathInfo) {
             case "/user/status":
                 updateUserStatus(request, response);
@@ -139,6 +145,8 @@ public class AdminServlet extends HttpServlet {
         int page = getIntParameter(request, "page", 1);
         int pageSize = 15;
 
+        ensureCsrfToken(request);
+
         List<User> users = userService.findByPage(page, pageSize);
         int totalCount = userService.getTotalCount();
         PageUtil pageUtil = new PageUtil(page, pageSize, totalCount);
@@ -157,6 +165,8 @@ public class AdminServlet extends HttpServlet {
         int page = getIntParameter(request, "page", 1);
         int pageSize = 15;
 
+        ensureCsrfToken(request);
+
         List<Article> articles = articleService.findAll(page, pageSize);
         int totalCount = articleService.getAllTotalCount();
         PageUtil pageUtil = new PageUtil(page, pageSize, totalCount);
@@ -172,6 +182,8 @@ public class AdminServlet extends HttpServlet {
      */
     private void listCategories(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        ensureCsrfToken(request);
+
         List<Category> categories = categoryService.findAllWithArticleCount();
         request.setAttribute("categories", categories);
 
@@ -183,6 +195,7 @@ public class AdminServlet extends HttpServlet {
      */
     private void showAddCategoryForm(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        ensureCsrfToken(request);
         request.getRequestDispatcher("/WEB-INF/views/admin/category-form.jsp").forward(request, response);
     }
 
@@ -206,6 +219,7 @@ public class AdminServlet extends HttpServlet {
                 return;
             }
 
+            ensureCsrfToken(request);
             request.setAttribute("category", category);
             request.getRequestDispatcher("/WEB-INF/views/admin/category-form.jsp").forward(request, response);
         } catch (NumberFormatException e) {
@@ -375,6 +389,7 @@ public class AdminServlet extends HttpServlet {
         } else {
             request.setAttribute("error", result);
         }
+        ensureCsrfToken(request);
         request.getRequestDispatcher("/WEB-INF/views/admin/category-form.jsp").forward(request, response);
     }
 
@@ -416,6 +431,7 @@ public class AdminServlet extends HttpServlet {
             request.setAttribute("error", "参数错误");
         }
 
+        ensureCsrfToken(request);
         request.getRequestDispatcher("/WEB-INF/views/admin/category-form.jsp").forward(request, response);
     }
 
@@ -461,5 +477,68 @@ public class AdminServlet extends HttpServlet {
             }
         }
         return defaultValue;
+    }
+
+    /**
+     * 确保后台页面都有同一个会话级Token，避免刷新页面后旧表单立即失效
+     */
+    private String ensureCsrfToken(HttpServletRequest request) {
+        HttpSession session = request.getSession();
+        String token = (String) session.getAttribute("csrfToken");
+        if (token == null || token.isEmpty()) {
+            token = StringUtil.generateToken();
+            session.setAttribute("csrfToken", token);
+        }
+        request.setAttribute("csrfToken", token);
+        return token;
+    }
+
+    /**
+     * 后台所有写操作统一校验Token，避免每个分支遗漏安全边界
+     */
+    private boolean verifyCsrfToken(HttpServletRequest request) {
+        String token = request.getParameter("csrfToken");
+        HttpSession session = request.getSession(false);
+        if (session == null || token == null || token.isEmpty()) {
+            return false;
+        }
+        String sessionToken = (String) session.getAttribute("csrfToken");
+        return sessionToken != null && sessionToken.equals(token);
+    }
+
+    /**
+     * 表单和Ajax失败响应不同，避免前端把HTML错误页当JSON解析
+     */
+    private void handleInvalidCsrfToken(HttpServletRequest request, HttpServletResponse response, String pathInfo)
+            throws ServletException, IOException {
+        if ("/category/add".equals(pathInfo) || "/category/edit".equals(pathInfo)) {
+            ensureCsrfToken(request);
+            request.setAttribute("error", "CSRF Token验证失败，请刷新页面后重试");
+            restoreCategoryForInvalidRequest(request);
+            request.getRequestDispatcher("/WEB-INF/views/admin/category-form.jsp").forward(request, response);
+            return;
+        }
+
+        response.setContentType("application/json;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        out.print(gson.toJson(Map.of("success", false, "message", "CSRF Token验证失败，请刷新页面后重试")));
+    }
+
+    /**
+     * 编辑分类提交失败时尽量保留原分类，减少用户重新定位的成本
+     */
+    private void restoreCategoryForInvalidRequest(HttpServletRequest request) {
+        String idStr = request.getParameter("id");
+        if (idStr == null || idStr.isEmpty()) {
+            return;
+        }
+        try {
+            Category category = categoryService.findById(Integer.parseInt(idStr));
+            if (category != null) {
+                request.setAttribute("category", category);
+            }
+        } catch (NumberFormatException ignored) {
+            // 非法ID只展示Token错误，避免额外错误信息干扰用户判断
+        }
     }
 }

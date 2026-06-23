@@ -158,6 +158,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/main.js"></script>
     <script>
+        const csrfToken = '${csrfToken}';
+
         // 全选/取消全选
         document.getElementById('selectAll').addEventListener('change', function() {
             var checkboxes = document.querySelectorAll('.article-checkbox');
@@ -171,12 +173,13 @@
                 return;
             }
 
-            fetch('${pageContext.request.contextPath}/article/delete', {
+            fetch('${pageContext.request.contextPath}/admin/article/delete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'id=' + id
+                body: 'id=' + encodeURIComponent(id)
+                    + '&csrfToken=' + encodeURIComponent(csrfToken)
             })
             .then(response => response.json())
             .then(data => {
@@ -209,12 +212,13 @@
                 return cb.value;
             });
 
-            fetch('${pageContext.request.contextPath}/article/batchDelete', {
+            fetch('${pageContext.request.contextPath}/admin/article/batchDelete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'ids=' + ids.join(',')
+                body: 'ids=' + encodeURIComponent(ids.join(','))
+                    + '&csrfToken=' + encodeURIComponent(csrfToken)
             })
             .then(response => response.json())
             .then(data => {

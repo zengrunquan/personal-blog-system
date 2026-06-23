@@ -77,6 +77,7 @@
                 <div class="card">
                     <div class="card-body">
                         <form action="${pageContext.request.contextPath}/admin/category/${empty category ? 'add' : 'edit'}" method="post">
+                            <input type="hidden" name="csrfToken" value="${csrfToken}">
                             <c:if test="${not empty category}">
                                 <input type="hidden" name="id" value="${category.id}">
                             </c:if>
