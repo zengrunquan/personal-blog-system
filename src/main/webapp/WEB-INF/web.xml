@@ -56,6 +56,11 @@
         <filter-name>AuthFilter</filter-name>
         <url-pattern>/article/batchUpload</url-pattern>
     </filter-mapping>
+    <!-- 下载接口只允许登录用户访问，避免未登录用户枚举附件文件名 -->
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/article/download</url-pattern>
+    </filter-mapping>
     <filter-mapping>
         <filter-name>AuthFilter</filter-name>
         <url-pattern>/comment/*</url-pattern>

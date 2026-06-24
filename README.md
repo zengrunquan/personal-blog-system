@@ -49,8 +49,8 @@ JavaWeb课程期末项目 - 基于Servlet+JSP+JDBC的个人博客系统
 
 ### 技术特性
 - MVC三层架构（Controller → Service → DAO）
-- 权限控制（普通用户/管理员，Filter实现）
-- 文件上传（头像/封面/附件，自动创建目录）
+- 权限控制（普通用户/管理员，Filter保护上传、下载、导出等接口）
+- 文件上传/下载（头像/封面/附件上传，登录后下载附件）
 - 分页查询（自定义PageUtil工具类）
 - 多表关联查询
 - 事务管理（分类删除级联清理评论）
@@ -165,6 +165,8 @@ mvn clean package
 | `/register.jsp` | 注册页 | 用户注册 |
 | `/article/list` | 文章列表 | 分页展示、分类筛选、搜索 |
 | `/article/detail?id=x` | 文章详情 | 文章内容、评论 |
+| `/article/download?file=x` | 附件下载 | 登录后下载已上传附件 |
+| `/article/export` | 文章导出 | 管理员导出文章CSV |
 | `/user/profile` | 个人信息 | 头像上传、资料查看 |
 | `/user/edit` | 编辑资料 | 修改昵称、邮箱 |
 | `/user/password` | 修改密码 | 修改登录密码 |
@@ -196,6 +198,8 @@ mvn clean package
 16. **Controller层NPE** - `AdminServlet`、`UserServlet` 等多处未检查Session中的用户对象
 17. **文章ID验证缺失** - `ArticleServiceImpl.update()` 未验证文章ID是否为空
 18. **批量删除空数组** - `batchDelete()` 传入空数组时未做校验
+19. **文章接口权限覆盖不完整** - 文章上传接口已补充登录过滤，文章导出接口已补充管理员过滤
+20. **后台POST/Ajax缺少CSRF校验** - 后台写操作已统一校验Token，后台表单和Ajax请求已携带 `csrfToken`
 
 ## 注意事项
 

@@ -9,6 +9,7 @@ import com.blog.service.impl.ArticleServiceImpl;
 import com.blog.service.impl.CategoryServiceImpl;
 import com.blog.util.PageUtil;
 import com.blog.util.StringUtil;
+import com.blog.util.UploadFileDownloadUtil;
 import com.google.gson.Gson;
 
 import javax.servlet.ServletException;
@@ -18,6 +19,8 @@ import javax.servlet.http.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +67,9 @@ public class ArticleServlet extends HttpServlet {
                 break;
             case "/export":
                 exportArticles(request, response);
+                break;
+            case "/download":
+                downloadFile(request, response);
                 break;
             default:
                 response.sendRedirect(request.getContextPath() + "/index.jsp");
@@ -577,6 +583,44 @@ public class ArticleServlet extends HttpServlet {
         }
 
         out.flush();
+    }
+
+    /**
+     * 下载已上传的附件
+     */
+    private void downloadFile(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String fileName = request.getParameter("file");
+        String uploadPath = getServletContext().getRealPath("/uploads/files");
+        if (uploadPath == null) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "附件目录不可用");
+            return;
+        }
+
+        Path downloadPath;
+        try {
+            downloadPath = UploadFileDownloadUtil.resolveDownloadPath(Path.of(uploadPath), fileName);
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            return;
+        }
+
+        if (!Files.exists(downloadPath) || !Files.isRegularFile(downloadPath)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "文件不存在");
+            return;
+        }
+
+        String contentType = getServletContext().getMimeType(downloadPath.getFileName().toString());
+        if (contentType == null) {
+            contentType = "application/octet-stream";
+        }
+
+        response.setContentType(contentType);
+        response.setHeader("Content-Disposition",
+                UploadFileDownloadUtil.buildContentDisposition(downloadPath.getFileName().toString()));
+        response.setContentLengthLong(Files.size(downloadPath));
+        Files.copy(downloadPath, response.getOutputStream());
+        response.getOutputStream().flush();
     }
 
     /**

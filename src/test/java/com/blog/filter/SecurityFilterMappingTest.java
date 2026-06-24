@@ -28,6 +28,13 @@ public class SecurityFilterMappingTest {
     }
 
     @Test
+    public void authFilterShouldProtectArticleDownloadEndpoint() throws Exception {
+        Set<String> patterns = findUrlPatterns("AuthFilter");
+
+        assertTrue("AuthFilter 必须保护附件下载接口", patterns.contains("/article/download"));
+    }
+
+    @Test
     public void adminFilterShouldProtectArticleExportEndpoint() throws Exception {
         Set<String> patterns = findUrlPatterns("AdminFilter");
 
