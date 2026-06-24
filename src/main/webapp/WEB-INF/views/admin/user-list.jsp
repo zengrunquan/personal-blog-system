@@ -130,6 +130,7 @@
                                                         <button class="btn btn-sm btn-outline-success" onclick="toggleStatus(${user.id}, 1)">启用</button>
                                                     </c:otherwise>
                                                 </c:choose>
+                                                <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteUser(${user.id})">删除</button>
                                             </c:if>
                                         </td>
                                     </tr>
@@ -194,6 +195,35 @@
             })
             .catch(error => {
                 showToast('操作失败: ' + error.message, 'danger');
+            });
+        }
+
+        function deleteUser(userId) {
+            if (!confirm('确定要删除该用户吗？此操作不可恢复。')) {
+                return;
+            }
+
+            fetch('${pageContext.request.contextPath}/admin/user/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'userId=' + encodeURIComponent(userId)
+                    + '&csrfToken=' + encodeURIComponent(csrfToken)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('用户已删除', 'success');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.message || '删除失败', 'danger');
+                }
+            })
+            .catch(error => {
+                showToast('删除失败: ' + error.message, 'danger');
             });
         }
     </script>
