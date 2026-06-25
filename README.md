@@ -207,6 +207,7 @@ mvn clean package
 1. 本项目为课程作业，请勿直接抄袭
 2. 上传的文件存储在 `webapp/uploads/` 下，重新部署WAR包时会被清空
 3. 请勿将数据库密码等敏感信息提交到Git仓库
+4. 请勿提交 IDE 配置、构建产物和本地运行时文件，例如 `.idea/`、`target/`、`*.class`、`src/main/webapp/uploads/`
 
 ## 许可证
 
