@@ -18,7 +18,7 @@ public class User implements Serializable {
     /** 用户名 */
     private String username;
 
-    /** 密码（MD5加密） */
+    /** 密码哈希（新账号使用BCrypt，兼容旧MD5迁移） */
     private String password;
 
     /** 昵称 */

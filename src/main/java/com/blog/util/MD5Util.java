@@ -1,64 +1,49 @@
 package com.blog.util;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Pattern;
 
 /**
- * MD5加密工具类
- * 用于密码加密存储
- *
- * @author blog-system
+ * 旧版MD5密码兼容工具。
+ * 仅用于验证历史账号，以便登录成功后迁移到BCrypt，不允许用于新密码存储。
  */
-public class MD5Util {
+final class MD5Util {
 
-    /**
-     * 对字符串进行MD5加密
-     *
-     * @param source 原始字符串
-     * @return 加密后的32位十六进制字符串
-     */
-    public static String md5(String source) {
-        if (source == null || source.isEmpty()) {
-            return "";
-        }
+    private static final Logger LOGGER = LogManager.getLogger(MD5Util.class);
+    private static final Pattern LEGACY_MD5_PATTERN = Pattern.compile("^[a-fA-F0-9]{32}$");
 
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] bytes = md.digest(source.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                // 将每个字节转换为两位十六进制数
-                String hex = Integer.toHexString(b & 0xFF);
-                if (hex.length() == 1) {
-                    sb.append("0");
-                }
-                sb.append(hex);
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("MD5加密失败", e);
-        }
+    private MD5Util() {
     }
 
-    /**
-     * 验证密码是否正确
-     *
-     * @param inputPassword    用户输入的密码
-     * @param encryptedPassword 数据库中加密后的密码
-     * @return 密码是否匹配
-     */
-    public static boolean verify(String inputPassword, String encryptedPassword) {
-        if (inputPassword == null || encryptedPassword == null) {
+    static boolean isLegacyHash(String passwordHash) {
+        return passwordHash != null && LEGACY_MD5_PATTERN.matcher(passwordHash).matches();
+    }
+
+    static boolean verify(String inputPassword, String passwordHash) {
+        if (inputPassword == null || !isLegacyHash(passwordHash)) {
             return false;
         }
-        return md5(inputPassword).equals(encryptedPassword);
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] actualHash = md.digest(inputPassword.getBytes(StandardCharsets.UTF_8));
+            byte[] expectedHash = hexToBytes(passwordHash);
+            return MessageDigest.isEqual(actualHash, expectedHash);
+        } catch (NoSuchAlgorithmException e) {
+            LOGGER.error("[MD5Util#verify] 无法验证旧版MD5密码，JVM缺少MD5算法", e);
+            throw new IllegalStateException("旧版MD5密码验证失败", e);
+        }
     }
 
-    /**
-     * 测试方法
-     */
-    public static void main(String[] args) {
-        System.out.println("admin123 加密后: " + md5("admin123"));
-        System.out.println("user123 加密后: " + md5("user123"));
+    private static byte[] hexToBytes(String hex) {
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < hex.length(); i += 2) {
+            bytes[i / 2] = (byte) Integer.parseInt(hex.substring(i, i + 2), 16);
+        }
+        return bytes;
     }
 }

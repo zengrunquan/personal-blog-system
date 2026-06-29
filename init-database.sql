@@ -19,7 +19,7 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
     `id` INT PRIMARY KEY AUTO_INCREMENT COMMENT '用户ID',
     `username` VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名（唯一）',
-    `password` VARCHAR(64) NOT NULL COMMENT '密码（MD5加密）',
+    `password` VARCHAR(64) NOT NULL COMMENT '密码哈希（BCrypt）',
     `nickname` VARCHAR(50) NOT NULL COMMENT '昵称',
     `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
     `avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像路径',
@@ -76,14 +76,14 @@ CREATE TABLE `comment` (
 -- 插入测试数据
 -- ================================================
 
--- 管理员账号（密码：admin123，MD5加密）
+-- 管理员账号（密码：admin123，BCrypt成本因子12）
 INSERT INTO `user` (`username`, `password`, `nickname`, `email`, `role`) VALUES
-('admin', '0192023a7bbd73250516f069df18b500', '管理员', 'admin@blog.com', 1);
+('admin', '$2a$12$g2ivDWxFKea55aGmQffsi.sTnD./uqurLvCdqP6OL6FIMydoQGW/i', '管理员', 'admin@blog.com', 1);
 
--- 普通用户账号（密码：user123，MD5加密）
+-- 普通用户账号（密码：user123，BCrypt成本因子12）
 INSERT INTO `user` (`username`, `password`, `nickname`, `email`, `role`) VALUES
-('zhangsan', '6ad14ba9986e3615423dfca256d04e3f', '张三', 'zhangsan@example.com', 0),
-('lisi', '6ad14ba9986e3615423dfca256d04e3f', '李四', 'lisi@example.com', 0);
+('zhangsan', '$2a$12$LKhJgLIqjwkCOlwh5CgfBenV1lGplPWRuJ4JrBTNZSSkxlHyJcFVi', '张三', 'zhangsan@example.com', 0),
+('lisi', '$2a$12$zhk2OPoOE3tZZejlX9W5oubWwEQBAM6pvWu5eR/eMkkHbOjh0A/8a', '李四', 'lisi@example.com', 0);
 
 -- 文章分类
 INSERT INTO `category` (`name`, `description`, `sort_order`) VALUES

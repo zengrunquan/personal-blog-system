@@ -91,6 +91,13 @@
             <version>2.10.1</version>
         </dependency>
 
+        <!-- BCrypt密码哈希 -->
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
+        </dependency>
+
         <!-- Log4j2 - 解决 Druid 连接池传递依赖 log4j-api 缺少实现的警告 -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

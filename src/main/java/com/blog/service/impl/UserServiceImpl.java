@@ -4,7 +4,9 @@ import com.blog.dao.UserDao;
 import com.blog.dao.impl.UserDaoImpl;
 import com.blog.entity.User;
 import com.blog.service.UserService;
-import com.blog.util.MD5Util;
+import com.blog.util.PasswordUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
@@ -15,6 +17,7 @@ import java.util.List;
  */
 public class UserServiceImpl implements UserService {
 
+    private static final Logger LOGGER = LogManager.getLogger(UserServiceImpl.class);
     private final UserDao userDao = new UserDaoImpl();
 
     @Override
@@ -48,8 +51,8 @@ public class UserServiceImpl implements UserService {
             return "用户名已存在";
         }
 
-        // 创建用户对象，密码加密存储
-        User user = new User(username, MD5Util.md5(password), nickname, email);
+        // 新密码必须使用随机盐，避免相同密码在数据库中产生相同哈希。
+        User user = new User(username, PasswordUtil.hash(password), nickname, email);
         user.setRole(0);  // 普通用户
         user.setStatus(1); // 正常状态
 
@@ -70,8 +73,8 @@ public class UserServiceImpl implements UserService {
             return null;
         }
 
-        // 验证密码
-        if (!MD5Util.verify(password, user.getPassword())) {
+        String storedPasswordHash = user.getPassword();
+        if (!PasswordUtil.verify(password, storedPasswordHash)) {
             return null;
         }
 
@@ -79,6 +82,8 @@ public class UserServiceImpl implements UserService {
         if (user.getStatus() != null && user.getStatus() == 0) {
             return null; // 用户已被禁用
         }
+
+        upgradeLegacyPassword(user, password, storedPasswordHash);
 
         // 清空密码后返回
         user.setPassword(null);
@@ -120,14 +125,39 @@ public class UserServiceImpl implements UserService {
             return "用户不存在";
         }
 
-        // 验证原密码
-        if (!MD5Util.verify(oldPassword, user.getPassword())) {
+        // 修改密码时仍允许旧账号使用原MD5密码，写入的新密码统一升级为BCrypt。
+        if (!PasswordUtil.verify(oldPassword, user.getPassword())) {
             return "原密码错误";
         }
 
         // 更新密码
-        boolean success = userDao.updatePassword(userId, MD5Util.md5(newPassword));
+        boolean success = userDao.updatePassword(userId, PasswordUtil.hash(newPassword));
         return success ? null : "修改密码失败";
+    }
+
+    private void upgradeLegacyPassword(User user, String password, String storedPasswordHash) {
+        if (!PasswordUtil.needsRehash(storedPasswordHash)) {
+            return;
+        }
+
+        try {
+            boolean upgraded = userDao.updatePassword(user.getId(), PasswordUtil.hash(password));
+            if (!upgraded) {
+                LOGGER.error(
+                        "[UserServiceImpl#upgradeLegacyPassword] 旧密码升级写回失败，userId={}，username={}",
+                        user.getId(),
+                        user.getUsername()
+                );
+            }
+        } catch (RuntimeException e) {
+            // 密码已经验证成功，迁移故障不应锁定用户；保留旧哈希以便下次登录重试。
+            LOGGER.error(
+                    "[UserServiceImpl#upgradeLegacyPassword] 旧密码升级异常，userId={}，username={}",
+                    user.getId(),
+                    user.getUsername(),
+                    e
+            );
+        }
     }
 
     @Override
