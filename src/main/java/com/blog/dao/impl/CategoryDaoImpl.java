@@ -3,6 +3,8 @@ package com.blog.dao.impl;
 import com.blog.dao.CategoryDao;
 import com.blog.entity.Category;
 import com.blog.util.DBUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -15,6 +17,8 @@ import java.util.List;
  */
 public class CategoryDaoImpl implements CategoryDao {
 
+    private static final Logger LOGGER = LogManager.getLogger(CategoryDaoImpl.class);
+
     @Override
     public boolean insert(Category category) {
         String sql = "INSERT INTO category (name, description, sort_order) VALUES (?, ?, ?)";
@@ -25,7 +29,7 @@ public class CategoryDaoImpl implements CategoryDao {
             ps.setInt(3, category.getSortOrder() != null ? category.getSortOrder() : 0);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#insert] 新增分类失败", e);
             return false;
         }
     }
@@ -42,7 +46,7 @@ public class CategoryDaoImpl implements CategoryDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#findById] 按ID查询分类失败，categoryId={}", id, e);
         }
         return null;
     }
@@ -59,7 +63,7 @@ public class CategoryDaoImpl implements CategoryDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#findByName] 按名称查询分类失败", e);
         }
         return null;
     }
@@ -76,7 +80,7 @@ public class CategoryDaoImpl implements CategoryDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#existsByName] 检查分类名称是否存在失败", e);
         }
         return false;
     }
@@ -92,7 +96,7 @@ public class CategoryDaoImpl implements CategoryDao {
                 categories.add(mapRowToCategory(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#findAll] 查询全部分类失败", e);
         }
         return categories;
     }
@@ -111,7 +115,12 @@ public class CategoryDaoImpl implements CategoryDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CategoryDaoImpl#findByPage] 分页查询分类失败，offset={}，limit={}",
+                    offset,
+                    limit,
+                    e
+            );
         }
         return categories;
     }
@@ -126,7 +135,7 @@ public class CategoryDaoImpl implements CategoryDao {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#getTotalCount] 查询分类总数失败", e);
         }
         return 0;
     }
@@ -142,7 +151,11 @@ public class CategoryDaoImpl implements CategoryDao {
             ps.setInt(4, category.getId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CategoryDaoImpl#update] 更新分类失败，categoryId={}",
+                    category.getId(),
+                    e
+            );
             return false;
         }
     }
@@ -185,10 +198,18 @@ public class CategoryDaoImpl implements CategoryDao {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    LOGGER.error(
+                            "[CategoryDaoImpl#delete] 回滚删除分类事务失败，categoryId={}",
+                            categoryId,
+                            ex
+                    );
                 }
             }
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CategoryDaoImpl#delete] 删除分类事务失败，categoryId={}",
+                    categoryId,
+                    e
+            );
             return false;
         } finally {
             // 恢复自动提交（放在独立的try-catch中，避免影响资源关闭）
@@ -196,7 +217,11 @@ public class CategoryDaoImpl implements CategoryDao {
                 try {
                     conn.setAutoCommit(true);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[CategoryDaoImpl#delete] 恢复自动提交失败，categoryId={}",
+                            categoryId,
+                            e
+                    );
                 }
             }
             // 关闭资源（每个close都在独立的try-catch中，确保全部执行）
@@ -204,28 +229,44 @@ public class CategoryDaoImpl implements CategoryDao {
                 try {
                     psComment.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[CategoryDaoImpl#delete] 关闭评论删除语句失败，categoryId={}",
+                            categoryId,
+                            e
+                    );
                 }
             }
             if (psArticle != null) {
                 try {
                     psArticle.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[CategoryDaoImpl#delete] 关闭文章删除语句失败，categoryId={}",
+                            categoryId,
+                            e
+                    );
                 }
             }
             if (psCategory != null) {
                 try {
                     psCategory.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[CategoryDaoImpl#delete] 关闭分类删除语句失败，categoryId={}",
+                            categoryId,
+                            e
+                    );
                 }
             }
             if (conn != null) {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[CategoryDaoImpl#delete] 关闭数据库连接失败，categoryId={}",
+                            categoryId,
+                            e
+                    );
                 }
             }
         }
@@ -246,7 +287,7 @@ public class CategoryDaoImpl implements CategoryDao {
                 categories.add(category);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CategoryDaoImpl#findAllWithArticleCount] 查询分类文章数失败", e);
         }
         return categories;
     }

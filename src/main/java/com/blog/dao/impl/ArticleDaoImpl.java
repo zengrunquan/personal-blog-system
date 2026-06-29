@@ -3,6 +3,8 @@ package com.blog.dao.impl;
 import com.blog.dao.ArticleDao;
 import com.blog.entity.Article;
 import com.blog.util.DBUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -15,6 +17,8 @@ import java.util.List;
  * @author blog-system
  */
 public class ArticleDaoImpl implements ArticleDao {
+
+    private static final Logger LOGGER = LogManager.getLogger(ArticleDaoImpl.class);
 
     @Override
     public boolean insert(Article article) {
@@ -30,7 +34,12 @@ public class ArticleDaoImpl implements ArticleDao {
             ps.setInt(7, article.getStatus() != null ? article.getStatus() : 1);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#insert] 新增文章失败，userId={}，categoryId={}",
+                    article.getUserId(),
+                    article.getCategoryId(),
+                    e
+            );
             return false;
         }
     }
@@ -54,7 +63,7 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[ArticleDaoImpl#findById] 按ID查询文章失败，articleId={}", id, e);
         }
         return null;
     }
@@ -73,7 +82,11 @@ public class ArticleDaoImpl implements ArticleDao {
             ps.setInt(7, article.getId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#update] 更新文章失败，articleId={}",
+                    article.getId(),
+                    e
+            );
             return false;
         }
     }
@@ -106,10 +119,18 @@ public class ArticleDaoImpl implements ArticleDao {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#delete] 回滚删除文章事务失败，articleId={}",
+                            articleId,
+                            ex
+                    );
                 }
             }
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#delete] 删除文章事务失败，articleId={}",
+                    articleId,
+                    e
+            );
             return false;
         } finally {
             // 恢复自动提交（放在独立的try-catch中，避免影响资源关闭）
@@ -117,7 +138,11 @@ public class ArticleDaoImpl implements ArticleDao {
                 try {
                     conn.setAutoCommit(true);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#delete] 恢复自动提交失败，articleId={}",
+                            articleId,
+                            e
+                    );
                 }
             }
             // 关闭资源（每个close都在独立的try-catch中，确保全部执行）
@@ -125,21 +150,33 @@ public class ArticleDaoImpl implements ArticleDao {
                 try {
                     psComment.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#delete] 关闭评论删除语句失败，articleId={}",
+                            articleId,
+                            e
+                    );
                 }
             }
             if (psArticle != null) {
                 try {
                     psArticle.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#delete] 关闭文章删除语句失败，articleId={}",
+                            articleId,
+                            e
+                    );
                 }
             }
             if (conn != null) {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#delete] 关闭数据库连接失败，articleId={}",
+                            articleId,
+                            e
+                    );
                 }
             }
         }
@@ -186,7 +223,13 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#findByCategory] 分页查询分类文章失败，categoryId={}，offset={}，limit={}",
+                    categoryId,
+                    offset,
+                    limit,
+                    e
+            );
         }
         return articles;
     }
@@ -203,7 +246,11 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#getCountByCategory] 查询分类文章数失败，categoryId={}",
+                    categoryId,
+                    e
+            );
         }
         return 0;
     }
@@ -232,7 +279,13 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#searchByTitle] 搜索文章失败，keywordLength={}，offset={}，limit={}",
+                    keyword == null ? 0 : keyword.length(),
+                    offset,
+                    limit,
+                    e
+            );
         }
         return articles;
     }
@@ -251,7 +304,11 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#getSearchTotalCount] 查询搜索结果总数失败，keywordLength={}",
+                    keyword == null ? 0 : keyword.length(),
+                    e
+            );
         }
         return 0;
     }
@@ -278,7 +335,13 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#findByUserId] 分页查询用户文章失败，userId={}，offset={}，limit={}",
+                    userId,
+                    offset,
+                    limit,
+                    e
+            );
         }
         return articles;
     }
@@ -295,7 +358,11 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#getCountByUserId] 查询用户文章数失败，userId={}",
+                    userId,
+                    e
+            );
         }
         return 0;
     }
@@ -308,7 +375,11 @@ public class ArticleDaoImpl implements ArticleDao {
             ps.setInt(1, articleId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#incrementViewCount] 增加文章浏览量失败，articleId={}",
+                    articleId,
+                    e
+            );
             return false;
         }
     }
@@ -378,10 +449,18 @@ public class ArticleDaoImpl implements ArticleDao {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#batchDelete] 回滚批量删除事务失败，batchSize={}",
+                            ids.length,
+                            ex
+                    );
                 }
             }
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#batchDelete] 批量删除文章事务失败，batchSize={}",
+                    ids.length,
+                    e
+            );
             return false;
         } finally {
             // 恢复自动提交（放在独立的try-catch中，避免影响资源关闭）
@@ -389,7 +468,11 @@ public class ArticleDaoImpl implements ArticleDao {
                 try {
                     conn.setAutoCommit(true);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#batchDelete] 恢复自动提交失败，batchSize={}",
+                            ids.length,
+                            e
+                    );
                 }
             }
             // 关闭资源（每个close都在独立的try-catch中，确保全部执行）
@@ -397,21 +480,33 @@ public class ArticleDaoImpl implements ArticleDao {
                 try {
                     psComment.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#batchDelete] 关闭评论批量删除语句失败，batchSize={}",
+                            ids.length,
+                            e
+                    );
                 }
             }
             if (psArticle != null) {
                 try {
                     psArticle.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#batchDelete] 关闭文章批量删除语句失败，batchSize={}",
+                            ids.length,
+                            e
+                    );
                 }
             }
             if (conn != null) {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    LOGGER.error(
+                            "[ArticleDaoImpl#batchDelete] 关闭数据库连接失败，batchSize={}",
+                            ids.length,
+                            e
+                    );
                 }
             }
         }
@@ -434,7 +529,7 @@ public class ArticleDaoImpl implements ArticleDao {
                 articles.add(mapRowToArticle(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[ArticleDaoImpl#findAll] 查询全部文章失败", e);
         }
         return articles;
     }
@@ -454,7 +549,12 @@ public class ArticleDaoImpl implements ArticleDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[ArticleDaoImpl#executeQuery] 执行分页文章查询失败，offset={}，limit={}",
+                    offset,
+                    limit,
+                    e
+            );
         }
         return articles;
     }
@@ -470,7 +570,7 @@ public class ArticleDaoImpl implements ArticleDao {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[ArticleDaoImpl#getCount] 执行文章计数查询失败", e);
         }
         return 0;
     }

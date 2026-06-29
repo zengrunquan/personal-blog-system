@@ -3,6 +3,8 @@ package com.blog.dao.impl;
 import com.blog.dao.CommentDao;
 import com.blog.entity.Comment;
 import com.blog.util.DBUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -15,6 +17,8 @@ import java.util.List;
  * @author blog-system
  */
 public class CommentDaoImpl implements CommentDao {
+
+    private static final Logger LOGGER = LogManager.getLogger(CommentDaoImpl.class);
 
     @Override
     public boolean insert(Comment comment) {
@@ -30,7 +34,12 @@ public class CommentDaoImpl implements CommentDao {
             ps.setInt(3, comment.getArticleId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CommentDaoImpl#insert] 新增评论失败，userId={}，articleId={}",
+                    comment.getUserId(),
+                    comment.getArticleId(),
+                    e
+            );
             return false;
         }
     }
@@ -50,7 +59,7 @@ public class CommentDaoImpl implements CommentDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[CommentDaoImpl#findById] 按ID查询评论失败，commentId={}", id, e);
         }
         return null;
     }
@@ -72,7 +81,11 @@ public class CommentDaoImpl implements CommentDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CommentDaoImpl#findByArticleId] 查询文章评论失败，articleId={}",
+                    articleId,
+                    e
+            );
         }
         return comments;
     }
@@ -89,7 +102,11 @@ public class CommentDaoImpl implements CommentDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CommentDaoImpl#getCountByArticleId] 查询文章评论数失败，articleId={}",
+                    articleId,
+                    e
+            );
         }
         return 0;
     }
@@ -102,7 +119,11 @@ public class CommentDaoImpl implements CommentDao {
             ps.setInt(1, commentId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CommentDaoImpl#delete] 删除评论失败，commentId={}",
+                    commentId,
+                    e
+            );
             return false;
         }
     }
@@ -116,7 +137,11 @@ public class CommentDaoImpl implements CommentDao {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CommentDaoImpl#deleteByArticleId] 删除文章评论失败，articleId={}",
+                    articleId,
+                    e
+            );
             return false;
         }
     }
@@ -138,7 +163,11 @@ public class CommentDaoImpl implements CommentDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[CommentDaoImpl#findByUserId] 查询用户评论失败，userId={}",
+                    userId,
+                    e
+            );
         }
         return comments;
     }

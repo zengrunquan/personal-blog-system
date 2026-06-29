@@ -1,6 +1,8 @@
 package com.blog.util;
 
 import com.alibaba.druid.pool.DruidDataSourceFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
 import java.io.InputStream;
@@ -18,6 +20,8 @@ import java.util.Properties;
  */
 public class DBUtil {
 
+    private static final Logger LOGGER = LogManager.getLogger(DBUtil.class);
+
     /** Druid数据源 */
     private static DataSource dataSource;
 
@@ -29,6 +33,7 @@ public class DBUtil {
             // 创建Druid数据源
             dataSource = DruidDataSourceFactory.createDataSource(properties);
         } catch (Exception e) {
+            LOGGER.error("[DBUtil#static] 初始化数据库连接池失败", e);
             throw new RuntimeException("初始化数据库连接池失败", e);
         }
     }
@@ -56,21 +61,21 @@ public class DBUtil {
                 rs.close();
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[DBUtil#close] 关闭ResultSet失败", e);
         }
         try {
             if (ps != null) {
                 ps.close();
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[DBUtil#close] 关闭PreparedStatement失败", e);
         }
         try {
             if (conn != null) {
                 conn.close();
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[DBUtil#close] 关闭Connection失败", e);
         }
     }
 

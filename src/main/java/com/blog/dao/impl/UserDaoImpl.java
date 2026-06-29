@@ -3,6 +3,8 @@ package com.blog.dao.impl;
 import com.blog.dao.UserDao;
 import com.blog.entity.User;
 import com.blog.util.DBUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -15,6 +17,8 @@ import java.util.List;
  * @author blog-system
  */
 public class UserDaoImpl implements UserDao {
+
+    private static final Logger LOGGER = LogManager.getLogger(UserDaoImpl.class);
 
     @Override
     public boolean insert(User user) {
@@ -30,7 +34,7 @@ public class UserDaoImpl implements UserDao {
             ps.setInt(7, user.getStatus() != null ? user.getStatus() : 1);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#insert] 新增用户失败", e);
             return false;
         }
     }
@@ -47,7 +51,7 @@ public class UserDaoImpl implements UserDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#findByUsername] 按用户名查询用户失败", e);
         }
         return null;
     }
@@ -64,7 +68,7 @@ public class UserDaoImpl implements UserDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#findById] 按ID查询用户失败，userId={}", id, e);
         }
         return null;
     }
@@ -81,7 +85,7 @@ public class UserDaoImpl implements UserDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#existsByUsername] 检查用户名是否存在失败", e);
         }
         return false;
     }
@@ -100,7 +104,7 @@ public class UserDaoImpl implements UserDao {
             ps.setInt(3, user.getId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#update] 更新用户资料失败，userId={}", user.getId(), e);
             return false;
         }
     }
@@ -114,7 +118,7 @@ public class UserDaoImpl implements UserDao {
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#updateAvatar] 更新用户头像失败，userId={}", userId, e);
             return false;
         }
     }
@@ -128,7 +132,7 @@ public class UserDaoImpl implements UserDao {
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#updatePassword] 更新用户密码失败，userId={}", userId, e);
             return false;
         }
     }
@@ -144,7 +148,7 @@ public class UserDaoImpl implements UserDao {
                 users.add(mapRowToUser(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#findAll] 查询全部用户失败", e);
         }
         return users;
     }
@@ -163,7 +167,12 @@ public class UserDaoImpl implements UserDao {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[UserDaoImpl#findByPage] 分页查询用户失败，offset={}，limit={}",
+                    offset,
+                    limit,
+                    e
+            );
         }
         return users;
     }
@@ -178,7 +187,7 @@ public class UserDaoImpl implements UserDao {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#getTotalCount] 查询用户总数失败", e);
         }
         return 0;
     }
@@ -191,7 +200,7 @@ public class UserDaoImpl implements UserDao {
             ps.setInt(1, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error("[UserDaoImpl#delete] 删除用户失败，userId={}", userId, e);
             return false;
         }
     }
@@ -209,7 +218,12 @@ public class UserDaoImpl implements UserDao {
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.error(
+                    "[UserDaoImpl#updateStatus] 更新用户状态失败，userId={}，status={}",
+                    userId,
+                    status,
+                    e
+            );
             return false;
         }
     }
