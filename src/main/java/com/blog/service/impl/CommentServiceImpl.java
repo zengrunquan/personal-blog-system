@@ -6,6 +6,7 @@ import com.blog.entity.Comment;
 import com.blog.service.CommentService;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 评论服务实现类
@@ -14,7 +15,15 @@ import java.util.List;
  */
 public class CommentServiceImpl implements CommentService {
 
-    private final CommentDao commentDao = new CommentDaoImpl();
+    private final CommentDao commentDao;
+
+    public CommentServiceImpl() {
+        this(new CommentDaoImpl());
+    }
+
+    public CommentServiceImpl(CommentDao commentDao) {
+        this.commentDao = Objects.requireNonNull(commentDao, "commentDao 不能为空");
+    }
 
     @Override
     public String addComment(String content, Integer userId, Integer articleId) {

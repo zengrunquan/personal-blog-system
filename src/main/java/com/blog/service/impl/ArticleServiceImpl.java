@@ -6,6 +6,7 @@ import com.blog.entity.Article;
 import com.blog.service.ArticleService;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 文章服务实现类
@@ -14,7 +15,15 @@ import java.util.List;
  */
 public class ArticleServiceImpl implements ArticleService {
 
-    private final ArticleDao articleDao = new ArticleDaoImpl();
+    private final ArticleDao articleDao;
+
+    public ArticleServiceImpl() {
+        this(new ArticleDaoImpl());
+    }
+
+    public ArticleServiceImpl(ArticleDao articleDao) {
+        this.articleDao = Objects.requireNonNull(articleDao, "articleDao 不能为空");
+    }
 
     @Override
     public String publish(Article article) {

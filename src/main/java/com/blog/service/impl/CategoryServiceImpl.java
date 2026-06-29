@@ -6,6 +6,7 @@ import com.blog.entity.Category;
 import com.blog.service.CategoryService;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 分类服务实现类
@@ -14,7 +15,15 @@ import java.util.List;
  */
 public class CategoryServiceImpl implements CategoryService {
 
-    private final CategoryDao categoryDao = new CategoryDaoImpl();
+    private final CategoryDao categoryDao;
+
+    public CategoryServiceImpl() {
+        this(new CategoryDaoImpl());
+    }
+
+    public CategoryServiceImpl(CategoryDao categoryDao) {
+        this.categoryDao = Objects.requireNonNull(categoryDao, "categoryDao 不能为空");
+    }
 
     @Override
     public String add(String name, String description) {

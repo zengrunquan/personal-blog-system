@@ -6,7 +6,6 @@ import com.blog.service.impl.UserServiceImpl;
 import com.blog.util.PasswordUtil;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -157,13 +156,8 @@ public class UserServicePasswordMigrationTest {
         );
     }
 
-    private UserServiceImpl createService(UserDao userDao) throws Exception {
-        UserServiceImpl service = new UserServiceImpl();
-        Field userDaoField = UserServiceImpl.class.getDeclaredField("userDao");
-        userDaoField.setAccessible(true);
-        // 第 9 点才会正式引入依赖注入，本测试仅替换 DAO 以隔离数据库并验证迁移行为。
-        userDaoField.set(service, userDao);
-        return service;
+    private UserServiceImpl createService(UserDao userDao) {
+        return new UserServiceImpl(userDao);
     }
 
     private Object defaultValue(Class<?> returnType) {

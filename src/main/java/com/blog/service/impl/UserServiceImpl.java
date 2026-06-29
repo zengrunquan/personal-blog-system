@@ -9,6 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 用户服务实现类
@@ -18,7 +19,15 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
 
     private static final Logger LOGGER = LogManager.getLogger(UserServiceImpl.class);
-    private final UserDao userDao = new UserDaoImpl();
+    private final UserDao userDao;
+
+    public UserServiceImpl() {
+        this(new UserDaoImpl());
+    }
+
+    public UserServiceImpl(UserDao userDao) {
+        this.userDao = Objects.requireNonNull(userDao, "userDao 不能为空");
+    }
 
     @Override
     public String register(String username, String password, String nickname, String email) {
