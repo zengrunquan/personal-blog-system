@@ -185,8 +185,15 @@
                     <!-- 文章分类 -->
                     <div class="sidebar-widget">
                         <h5><i class="fas fa-folder me-2"></i>文章分类</h5>
-                        <ul class="category-list" id="categoryList">
-                            <!-- 由Ajax加载 -->
+                        <ul class="category-list">
+                            <c:forEach items="${categories}" var="category">
+                                <li>
+                                    <a href="${pageContext.request.contextPath}/article/category?id=${category.id}">
+                                        <c:out value="${category.name}"/>
+                                        <span class="category-count">${category.articleCount}</span>
+                                    </a>
+                                </li>
+                            </c:forEach>
                         </ul>
                     </div>
 
@@ -248,7 +255,6 @@
         // 页面加载完成后获取数据
         document.addEventListener('DOMContentLoaded', function() {
             loadLatestArticles();
-            loadCategories();
             updateOnlineCount();
         });
 
@@ -269,37 +275,6 @@
                 `;
             } catch (error) {
                 console.error('[DEBUG] 加载文章失败:', error);
-            }
-        }
-
-        // 加载分类列表
-        async function loadCategories() {
-            try {
-                // 简化处理：显示静态分类
-                document.getElementById('categoryList').innerHTML = `
-                    <li>
-                        <a href="${pageContext.request.contextPath}/article/category?id=1">
-                            技术分享 <span class="category-count">0</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="${pageContext.request.contextPath}/article/category?id=2">
-                            生活随笔 <span class="category-count">0</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="${pageContext.request.contextPath}/article/category?id=3">
-                            学习笔记 <span class="category-count">0</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="${pageContext.request.contextPath}/article/category?id=4">
-                            项目实战 <span class="category-count">0</span>
-                        </a>
-                    </li>
-                `;
-            } catch (error) {
-                console.error('[DEBUG] 加载分类失败:', error);
             }
         }
 
