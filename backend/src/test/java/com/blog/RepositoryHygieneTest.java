@@ -33,6 +33,7 @@ public class RepositoryHygieneTest {
         assertTrue("README 必须说明 Maven 构建产物不提交", readme.contains("target/"));
         assertTrue("README 必须说明 class 文件不提交", readme.contains("*.class"));
         assertTrue("README 必须说明运行时上传文件不提交", readme.contains("src/main/webapp/uploads/"));
+        assertTrue("README 必须说明项目 docs 上传目录不提交", readme.contains("docs/uploads/"));
     }
 
     @Test
@@ -44,6 +45,8 @@ public class RepositoryHygieneTest {
         assertTrue("前端本地环境变量必须被 Git 忽略", isIgnored("frontend/.env.local"));
         assertTrue("私有附件目录必须被 Git 忽略",
                 isIgnored("backend/src/main/webapp/WEB-INF/private-uploads/example.html"));
+        assertTrue("项目 docs 上传目录必须被 Git 忽略",
+                isIgnored("docs/uploads/example.jpg"));
         assertFalse("脱敏后的数据库配置示例必须允许提交", isIgnored("backend/src/main/resources/db.properties.example"));
         assertFalse("环境变量示例必须允许提交", isIgnored("frontend/.env.example"));
     }

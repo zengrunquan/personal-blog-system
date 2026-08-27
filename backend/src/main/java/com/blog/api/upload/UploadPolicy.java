@@ -35,6 +35,15 @@ public final class UploadPolicy {
         return IMAGE_EXTENSIONS.get(contentType.toLowerCase(Locale.ROOT));
     }
 
+    public static String imageContentType(String fileName) {
+        if (fileName == null) return null;
+        String normalized = fileName.toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, String> entry : IMAGE_EXTENSIONS.entrySet()) {
+            if (normalized.endsWith(entry.getValue())) return entry.getKey();
+        }
+        return null;
+    }
+
     public static String safeOriginalName(String submittedName) {
         if (submittedName == null || submittedName.isBlank()) return "attachment";
         // 浏览器可能提交 Windows 或 Unix 路径，先统一分隔符再仅保留文件名。

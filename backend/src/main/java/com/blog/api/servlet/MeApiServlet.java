@@ -86,7 +86,7 @@ public class MeApiServlet extends BaseApiServlet {
             if (part == null) throw validation("file", "请选择头像图片");
             try {
                 UploadStorage.UploadResult uploaded = UploadStorage.saveImage(
-                        part, "avatars", request, getServletContext()
+                        part, "avatars", request
                 );
                 if (!userService.updateAvatar(user.getId(), uploaded.url)) {
                     throw badRequest("UPDATE_FAILED", "头像更新失败");

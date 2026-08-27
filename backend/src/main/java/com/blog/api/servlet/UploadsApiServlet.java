@@ -22,13 +22,13 @@ public class UploadsApiServlet extends BaseApiServlet {
             try {
                 if ("/images".equals(pathInfo(request))) {
                     writeCreated(response,
-                            UploadStorage.saveImage(part, "images", request, getServletContext()),
+                            UploadStorage.saveImage(part, "images", request),
                             "图片上传成功");
                     return;
                 }
                 if ("/files".equals(pathInfo(request))) {
                     writeCreated(response,
-                            UploadStorage.saveAttachment(part, request, getServletContext()),
+                            UploadStorage.saveAttachment(part, request),
                             "附件上传成功");
                     return;
                 }

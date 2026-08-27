@@ -32,4 +32,13 @@ public class UploadPolicyTest {
         assertEquals("notes.pdf", UploadPolicy.safeOriginalName("C:\\fakepath\\notes.pdf"));
         assertEquals("notes.pdf", UploadPolicy.safeOriginalName("../../notes.pdf"));
     }
+
+    @Test
+    public void shouldResolveStableMimeTypeFromStoredImageExtension() {
+        assertEquals("image/jpeg", UploadPolicy.imageContentType("avatar_123.jpg"));
+        assertEquals("image/png", UploadPolicy.imageContentType("image_123.png"));
+        assertEquals("image/gif", UploadPolicy.imageContentType("image_123.gif"));
+        assertEquals("image/webp", UploadPolicy.imageContentType("image_123.webp"));
+        assertEquals(null, UploadPolicy.imageContentType("file_123.pdf"));
+    }
 }

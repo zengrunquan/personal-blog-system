@@ -83,6 +83,37 @@ pnpm dev
 
 Vite 会把 `/api` 与 `/uploads` 代理到 Tomcat 的 `/personal_blog_system_war_exploded` 上下文。
 
+### 上传文件存储
+
+头像、文章图片和附件不会写入 Maven 的 `target` 或 Tomcat 展开目录，而是按媒体类型存放到项目根目录下的运行时目录。默认结构为：
+
+```text
+<personal-blog-system 项目根目录>\docs\uploads
+├── image\   # 头像 avatar_*、文章图片 image_*
+└── file\    # 附件 file_*
+```
+
+在当前开发机上，上传根目录的绝对路径是 `D:\work\local_repository\javaweb\zrq_231124081\personal-blog-system\docs\uploads`。应用会从当前工作目录和类加载位置向上识别项目根目录，并在首次上传或读取文件时自动创建根目录及 `image`、`file` 子目录；因此 IDEA 重新构建或重新部署 exploded WAR 不会改变默认位置。物理文件通过目录和前缀双重分类：头像使用 `image\avatar_*`、文章图片使用 `image\image_*`、私有附件使用 `file\file_*`；数据库和浏览器 URL 仍使用不带物理前缀的 UUID 文件名。头像和文章图片继续通过 `/uploads/*` 读取，附件只能通过要求登录的 `/api/files/{name}/download` 下载。
+
+其他开发机或部署环境可通过环境变量覆盖默认目录：
+
+```powershell
+$env:BLOG_UPLOAD_DIR='E:\blog-data\uploads'
+```
+
+也可以使用 JVM 参数 `-Dblog.upload.dir=E:\blog-data\uploads`；JVM 参数优先于环境变量。若部署包已离开源码目录，必须使用其中一种方式明确配置路径。`docs/uploads/` 已加入 `.gitignore`，其中的运行时业务数据不提交到 Git，生产环境仍应单独备份。
+
+历史文件若仍有备份，可在停止应用并备份数据库后复制到新目录，同时只给物理文件添加类型前缀，数据库 URL 不需要修改：
+
+```text
+旧 uploads/avatars/<name>              → <upload-root>/image/avatar_<name>
+旧 uploads/images/<name>               → <upload-root>/image/image_<name>
+旧 WEB-INF/private-uploads/files/<name> → <upload-root>/file/file_<name>
+旧 uploads/files/<name>                → <upload-root>/file/file_<name>
+```
+
+迁移后应按文件数量、大小或哈希核对备份与新目录。只有数据库 URL、没有原始文件或文件备份时，无法恢复已丢失的二进制内容。
+
 ## 生产构建
 
 ```powershell
@@ -138,7 +169,7 @@ cd ..\backend
 - 密码使用成本因子 12 的 BCrypt 哈希；旧 MD5 账号仅用于兼容，登录成功后会自动升级为 BCrypt。
 - DAO 和 DBUtil 执行统一数据库错误日志策略，错误日志包含类名、方法名、操作上下文和异常堆栈。
 - Service 构造器依赖注入用于替换 DAO 依赖并提高可测试性，同时保留供 Servlet 装配的无参构造器。
-- 仓库卫生规则：不提交 `.idea/`、`target/`、`*.class`、真实 `db.properties`、`.env` 和数据库备份；`src/main/webapp/uploads/`、`backend/src/main/webapp/uploads/` 及对应的 `WEB-INF/private-uploads/` 运行时目录均被忽略。
+- 仓库卫生规则：不提交 `.idea/`、`target/`、`*.class`、真实 `db.properties`、`.env`、数据库备份和 `docs/uploads/` 运行时上传数据；历史 `src/main/webapp/uploads/`、`backend/src/main/webapp/uploads/` 及对应的 `WEB-INF/private-uploads/` 目录仍被忽略，避免旧运行文件被误提交。
 - 本机打包的 WAR 会包含本地数据库配置，只能用于本机部署；不要把该 WAR 上传到 GitHub Releases 或交给其他环境。如需分发可部署产物，应先把数据库凭据改为由部署环境外部注入。
 
 ## 许可证
