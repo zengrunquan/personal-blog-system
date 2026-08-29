@@ -1,0 +1,2 @@
+# 前端统一使用 LF，避免开发者本机的 core.autocrlf 改写 Prettier 基线
+* text=auto eol=lf

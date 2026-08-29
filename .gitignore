@@ -49,6 +49,7 @@ Thumbs.db
 
 # 上传的文件（不提交到仓库）
 docs/uploads/
+docs/superpowers/
 src/main/webapp/uploads/
 backend/src/main/webapp/uploads/
 src/main/webapp/WEB-INF/private-uploads/
