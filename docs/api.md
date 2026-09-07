@@ -56,6 +56,20 @@ type ApiResponse<T> =
 | POST | `/api/uploads/files` | 附件，最大 10 MB |
 | GET | `/api/files/{name}/download` | 下载附件 |
 
+上传成功仍返回 HTTP `201`，数据字段保持兼容：
+
+```ts
+interface UploadResult {
+  storedName: string       // 兼容现有物理前缀，例如 image_<uuid>.png
+  originalName: string
+  url: string
+  contentType: string | null
+  size: number
+}
+```
+
+上传服务会同时登记 `media_asset` 的 `TEMP` 元数据；文章保存或头像替换成功后才登记业务引用。该生命周期登记不新增前端端点和请求字段，附件下载仍要求登录，且仍使用 UUID 文件名而不是原始文件名。
+
 ## 管理后台
 
 | 方法 | 路径 | 说明 |

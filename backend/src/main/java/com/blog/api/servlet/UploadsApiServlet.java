@@ -1,6 +1,8 @@
 package com.blog.api.servlet;
 
-import com.blog.api.upload.UploadStorage;
+import com.blog.entity.User;
+import com.blog.media.model.MediaType;
+import com.blog.media.service.MediaUploadService;
 
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
@@ -13,22 +15,43 @@ import java.io.IOException;
 @MultipartConfig(maxFileSize = 10L * 1024 * 1024, maxRequestSize = 11L * 1024 * 1024)
 public class UploadsApiServlet extends BaseApiServlet {
 
+    private final MediaUploadService mediaUploadService;
+
+    public UploadsApiServlet() {
+        this(new MediaUploadService());
+    }
+
+    UploadsApiServlet(MediaUploadService mediaUploadService) {
+        this.mediaUploadService = java.util.Objects.requireNonNull(
+                mediaUploadService, "mediaUploadService 不能为空");
+    }
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         execute(request, response, () -> {
-            requireUser(request);
+            User user = requireUser(request);
             Part part = request.getPart("file");
             if (part == null) throw validation("file", "请选择文件");
             try {
                 if ("/images".equals(pathInfo(request))) {
                     writeCreated(response,
-                            UploadStorage.saveImage(part, "images", request),
+                            mediaUploadService.upload(
+                                    part,
+                                    MediaType.ARTICLE_IMAGE,
+                                    user.getId(),
+                                    request.getContextPath()
+                            ),
                             "图片上传成功");
                     return;
                 }
                 if ("/files".equals(pathInfo(request))) {
                     writeCreated(response,
-                            UploadStorage.saveAttachment(part, request),
+                            mediaUploadService.upload(
+                                    part,
+                                    MediaType.ATTACHMENT,
+                                    user.getId(),
+                                    request.getContextPath()
+                            ),
                             "附件上传成功");
                     return;
                 }

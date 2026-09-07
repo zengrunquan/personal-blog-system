@@ -25,14 +25,7 @@ public class ArticleDaoImpl implements ArticleDao {
         String sql = "INSERT INTO article (title, content, summary, cover_image, user_id, category_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, article.getTitle());
-            ps.setString(2, article.getContent());
-            ps.setString(3, article.getSummary());
-            ps.setString(4, article.getCoverImage());
-            ps.setInt(5, article.getUserId());
-            ps.setInt(6, article.getCategoryId());
-            ps.setInt(7, article.getStatus() != null ? article.getStatus() : 1);
-            return ps.executeUpdate() > 0;
+            return insertValues(ps, article) > 0;
         } catch (SQLException e) {
             LOGGER.error(
                     "[ArticleDaoImpl#insert] 新增文章失败，userId={}，categoryId={}",
@@ -41,6 +34,19 @@ public class ArticleDaoImpl implements ArticleDao {
                     e
             );
             return false;
+        }
+    }
+
+    @Override
+    public boolean insert(Connection connection, Article article) throws SQLException {
+        String sql = "INSERT INTO article (title, content, summary, cover_image, user_id, category_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            if (insertValues(statement, article) <= 0) return false;
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                if (!keys.next()) throw new SQLException("新增文章后未返回自增 ID");
+                article.setId(keys.getInt(1));
+                return true;
+            }
         }
     }
 
@@ -88,6 +94,21 @@ public class ArticleDaoImpl implements ArticleDao {
                     e
             );
             return false;
+        }
+    }
+
+    @Override
+    public boolean update(Connection connection, Article article) throws SQLException {
+        String sql = "UPDATE article SET title = ?, content = ?, summary = ?, cover_image = ?, category_id = ?, status = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, article.getTitle());
+            statement.setString(2, article.getContent());
+            statement.setString(3, article.getSummary());
+            statement.setString(4, article.getCoverImage());
+            statement.setInt(5, article.getCategoryId());
+            statement.setInt(6, article.getStatus() != null ? article.getStatus() : 1);
+            statement.setInt(7, article.getId());
+            return statement.executeUpdate() > 0;
         }
     }
 
@@ -179,6 +200,19 @@ public class ArticleDaoImpl implements ArticleDao {
                     );
                 }
             }
+        }
+    }
+
+    @Override
+    public boolean delete(Connection connection, Integer articleId) throws SQLException {
+        try (PreparedStatement comments = connection.prepareStatement(
+                "DELETE FROM comment WHERE article_id = ?");
+             PreparedStatement article = connection.prepareStatement(
+                     "DELETE FROM article WHERE id = ?")) {
+            comments.setInt(1, articleId);
+            comments.executeUpdate();
+            article.setInt(1, articleId);
+            return article.executeUpdate() > 0;
         }
     }
 
@@ -513,6 +547,26 @@ public class ArticleDaoImpl implements ArticleDao {
     }
 
     @Override
+    public boolean batchDelete(Connection connection, Integer[] ids) throws SQLException {
+        if (ids == null || ids.length == 0) return false;
+        try (PreparedStatement comments = connection.prepareStatement(
+                "DELETE FROM comment WHERE article_id = ?");
+             PreparedStatement articles = connection.prepareStatement(
+                     "DELETE FROM article WHERE id = ?")) {
+            for (Integer id : ids) {
+                if (id == null) continue;
+                comments.setInt(1, id);
+                comments.addBatch();
+                articles.setInt(1, id);
+                articles.addBatch();
+            }
+            comments.executeBatch();
+            articles.executeBatch();
+            return true;
+        }
+    }
+
+    @Override
     public List<Article> findAll() {
         String sql = "SELECT a.*, u.username AS author_name, u.nickname AS author_nickname, " +
                      "u.avatar AS author_avatar, c.name AS category_name, " +
@@ -557,6 +611,17 @@ public class ArticleDaoImpl implements ArticleDao {
             );
         }
         return articles;
+    }
+
+    private int insertValues(PreparedStatement statement, Article article) throws SQLException {
+        statement.setString(1, article.getTitle());
+        statement.setString(2, article.getContent());
+        statement.setString(3, article.getSummary());
+        statement.setString(4, article.getCoverImage());
+        statement.setInt(5, article.getUserId());
+        statement.setInt(6, article.getCategoryId());
+        statement.setInt(7, article.getStatus() != null ? article.getStatus() : 1);
+        return statement.executeUpdate();
     }
 
     /**

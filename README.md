@@ -28,7 +28,7 @@ personal-blog-system/
 
 - 前端：Vue 3、TypeScript strict、Vite、Vue Router、Pinia、Axios、TipTap、DOMPurify、Lucide、Vitest、Playwright
 - 后端：Java 11、Servlet 4、JDBC、Druid、Log4j2、Gson、OWASP Java HTML Sanitizer
-- 数据库：MySQL 8，保留原有表关系，并通过迁移脚本新增可空的 `user.bio` 字段
+- 数据库：MySQL 8，保留原有表关系，并通过迁移脚本新增可空的 `user.bio` 字段及媒体资产/引用表
 - 会话：同域 `JSESSIONID`，写请求使用 `X-CSRF-Token`
 
 ## 主要功能
@@ -55,7 +55,7 @@ Copy-Item backend/src/main/resources/db.properties.example `
   backend/src/main/resources/db.properties
 ```
 
-以 [backend/src/main/resources/db.properties.example](backend/src/main/resources/db.properties.example) 为模板，然后编辑本地的 `backend/src/main/resources/db.properties` 数据库连接；真实配置已被 Git 忽略。初始化脚本已包含 `bio` 字段；已有数据库需在完整备份后执行 [database/migrations/2026-08-25-add-user-bio.sql](database/migrations/2026-08-25-add-user-bio.sql)。初始化脚本和迁移脚本均不会自动执行。
+以 [backend/src/main/resources/db.properties.example](backend/src/main/resources/db.properties.example) 为模板，然后编辑本地的 `backend/src/main/resources/db.properties` 数据库连接；真实配置已被 Git 忽略。初始化脚本已包含 `bio` 字段和媒体生命周期表；已有数据库需在完整备份后分别评审并执行 [database/migrations/2026-08-25-add-user-bio.sql](database/migrations/2026-08-25-add-user-bio.sql) 与 [database/migrations/2026-08-31-add-media-lifecycle.sql](database/migrations/2026-08-31-add-media-lifecycle.sql)。初始化脚本和迁移脚本均不会自动执行。
 
 ### 2. 启动后端
 
@@ -113,6 +113,34 @@ $env:BLOG_UPLOAD_DIR='E:\blog-data\uploads'
 ```
 
 迁移后应按文件数量、大小或哈希核对备份与新目录。只有数据库 URL、没有原始文件或文件备份时，无法恢复已丢失的二进制内容。
+
+### 媒体生命周期治理
+
+上传文件的二进制仍保存在上述 `image/`、`file/` 目录；`media_asset` 保存文件元数据和状态，`media_reference` 保存头像、文章正文及封面引用。
+
+```text
+上传 → 原子写入文件 → media_asset:TEMP（24 小时缓冲）
+                                  │
+文章/头像事务成功 ────────────────┴→ ACTIVE + media_reference
+                                  │
+引用全部消失 → DELETE_PENDING → 到期认领 → 事务外删除 → DELETED
+```
+
+文章保存会先使用服务端清洗后的 HTML 识别 `img[src]`、`a[href]` 和封面 URL；文章数据与引用在同一 JDBC 事务中提交。数据库事务失败时，新上传文件会执行补偿删除，头像 Session 只在事务提交后更新。清理器使用单线程 daemon Listener，但数据库认领带 token，可安全支持多实例；`LEGACY_PROTECTED`、`MISSING_BINARY` 和历史未知文件不会自动删除。
+
+清理器默认配置为启用、保留 24 小时、每 60 分钟执行、每轮最多 100 个、认领超时 60 分钟。可用 JVM 参数或同名环境变量覆盖，JVM 参数优先：
+
+| JVM 参数 | 环境变量 | 默认值 | 允许范围 |
+| --- | --- | ---: | --- |
+| `blog.media.cleanup.enabled` | `BLOG_MEDIA_CLEANUP_ENABLED` | `true` | `true` / `false` |
+| `blog.media.retention.hours` | `BLOG_MEDIA_RETENTION_HOURS` | `24` | `1..8760` |
+| `blog.media.cleanup.interval.minutes` | `BLOG_MEDIA_CLEANUP_INTERVAL_MINUTES` | `60` | `1..1440` |
+| `blog.media.cleanup.batch.size` | `BLOG_MEDIA_CLEANUP_BATCH_SIZE` | `100` | `1..10000` |
+| `blog.media.claim.timeout.minutes` | `BLOG_MEDIA_CLAIM_TIMEOUT_MINUTES` | `60` | `1..1440` |
+
+非法值（包括零、负数、不可解析值和超出范围的值）会拒绝启动清理器，不会静默回退到危险配置。清理器使用固定延迟调度，每轮会记录认领、删除、缺失文件、失败和耗时汇总。首次启用前必须完成数据库与上传目录备份，并先运行历史回填 dry-run；操作步骤见 [docs/media-lifecycle-runbook.md](docs/media-lifecycle-runbook.md)。
+
+截至 2026-09-03，媒体生命周期实现已完成两轮代码审查：后端 146 项测试和 WAR 打包通过，前端 lint、13 项 Vitest 与生产构建通过，未发现影响 10.2 使用的遗留代码缺陷。真实 MySQL 8 迁移、历史回填和物理清理尚未执行；已有数据库在完成备份、迁移和回填前应关闭清理器，不能把自动化测试通过等同于真实环境已经完成上线。
 
 ## 生产构建
 

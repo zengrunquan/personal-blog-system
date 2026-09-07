@@ -126,6 +126,20 @@ public class UserDaoImpl implements UserDao {
     }
 
     @Override
+    public boolean updateAvatar(Connection connection, Integer userId, String avatar)
+            throws SQLException {
+        if (connection == null || userId == null) {
+            throw new SQLException("头像更新缺少数据库连接或用户 ID");
+        }
+        String sql = "UPDATE user SET avatar = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, avatar);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    @Override
     public boolean updatePassword(Integer userId, String newPassword) {
         String sql = "UPDATE user SET password = ? WHERE id = ?";
         try (Connection conn = DBUtil.getConnection();

@@ -4,6 +4,7 @@ import com.blog.api.response.PageResult;
 import com.blog.api.support.DtoMapper;
 import com.blog.api.upload.UploadStorage;
 import com.blog.entity.User;
+import com.blog.media.service.MediaUploadService;
 import com.blog.service.ArticleService;
 import com.blog.service.UserService;
 import com.blog.service.impl.ArticleServiceImpl;
@@ -21,8 +22,25 @@ import java.util.Map;
 @MultipartConfig(maxFileSize = 5L * 1024 * 1024, maxRequestSize = 6L * 1024 * 1024)
 public class MeApiServlet extends BaseApiServlet {
 
-    private final UserService userService = new UserServiceImpl();
-    private final ArticleService articleService = new ArticleServiceImpl();
+    private final UserService userService;
+    private final ArticleService articleService;
+    private final MediaUploadService mediaUploadService;
+
+    public MeApiServlet() {
+        this(new UserServiceImpl(), new ArticleServiceImpl(), new MediaUploadService());
+    }
+
+    MeApiServlet(
+            UserService userService,
+            ArticleService articleService,
+            MediaUploadService mediaUploadService
+    ) {
+        this.userService = java.util.Objects.requireNonNull(userService, "userService 不能为空");
+        this.articleService = java.util.Objects.requireNonNull(
+                articleService, "articleService 不能为空");
+        this.mediaUploadService = java.util.Objects.requireNonNull(
+                mediaUploadService, "mediaUploadService 不能为空");
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -85,12 +103,11 @@ public class MeApiServlet extends BaseApiServlet {
             Part part = request.getPart("file");
             if (part == null) throw validation("file", "请选择头像图片");
             try {
-                UploadStorage.UploadResult uploaded = UploadStorage.saveImage(
-                        part, "avatars", request
+                UploadStorage.UploadResult uploaded = mediaUploadService.replaceAvatar(
+                        part,
+                        user.getId(),
+                        request.getContextPath()
                 );
-                if (!userService.updateAvatar(user.getId(), uploaded.url)) {
-                    throw badRequest("UPDATE_FAILED", "头像更新失败");
-                }
                 user.setAvatar(uploaded.url);
                 request.getSession().setAttribute("loginUser", user);
                 writeCreated(response, uploaded, "头像已更新");

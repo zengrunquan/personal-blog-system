@@ -1,6 +1,8 @@
 package com.blog.dao;
 
 import com.blog.entity.Article;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -18,6 +20,11 @@ public interface ArticleDao {
      */
     boolean insert(Article article);
 
+    /** 在外部事务连接中新增文章，成功时回填自增 ID。 */
+    default boolean insert(Connection connection, Article article) throws SQLException {
+        throw new UnsupportedOperationException("当前 ArticleDao 未提供外部事务 insert");
+    }
+
     /**
      * 根据ID查询文章（包含作者和分类信息）
      *
@@ -34,6 +41,11 @@ public interface ArticleDao {
      */
     boolean update(Article article);
 
+    /** 在外部事务连接中更新文章。 */
+    default boolean update(Connection connection, Article article) throws SQLException {
+        throw new UnsupportedOperationException("当前 ArticleDao 未提供外部事务 update");
+    }
+
     /**
      * 删除文章
      *
@@ -41,6 +53,11 @@ public interface ArticleDao {
      * @return 是否成功
      */
     boolean delete(Integer articleId);
+
+    /** 在外部事务连接中删除文章，事务由服务层统一提交。 */
+    default boolean delete(Connection connection, Integer articleId) throws SQLException {
+        throw new UnsupportedOperationException("当前 ArticleDao 未提供外部事务 delete");
+    }
 
     /**
      * 分页查询已发布文章（按时间倒序）
@@ -143,6 +160,11 @@ public interface ArticleDao {
      * @return 是否成功
      */
     boolean batchDelete(Integer[] ids);
+
+    /** 在外部事务连接中批量删除文章。 */
+    default boolean batchDelete(Connection connection, Integer[] ids) throws SQLException {
+        throw new UnsupportedOperationException("当前 ArticleDao 未提供外部事务 batchDelete");
+    }
 
     /**
      * 获取所有文章（用于导出）

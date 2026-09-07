@@ -1,6 +1,9 @@
 package com.blog.dao;
 
 import com.blog.entity.User;
+
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -58,6 +61,14 @@ public interface UserDao {
      * @return 是否成功
      */
     boolean updateAvatar(Integer userId, String avatar);
+
+    /**
+     * 在调用方事务内更新用户头像，避免头像字段与媒体引用分属不同事务。
+     */
+    default boolean updateAvatar(Connection connection, Integer userId, String avatar)
+            throws SQLException {
+        throw new UnsupportedOperationException("当前 UserDao 未实现外部事务头像更新");
+    }
 
     /**
      * 修改密码

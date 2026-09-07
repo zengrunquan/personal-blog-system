@@ -3,9 +3,17 @@ package com.blog.service.impl;
 import com.blog.dao.ArticleDao;
 import com.blog.dao.impl.ArticleDaoImpl;
 import com.blog.entity.Article;
+import com.blog.media.service.MediaReferenceService;
+import com.blog.media.service.MediaReferenceServiceImpl;
 import com.blog.service.ArticleService;
 import com.blog.api.support.HtmlContentSanitizer;
+import com.blog.util.JdbcTransactionManager;
+import com.blog.util.TransactionException;
+import com.blog.util.TransactionManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 
@@ -16,14 +24,29 @@ import java.util.Objects;
  */
 public class ArticleServiceImpl implements ArticleService {
 
+    private static final Logger LOGGER = LogManager.getLogger(ArticleServiceImpl.class);
     private final ArticleDao articleDao;
+    private final MediaReferenceService mediaReferenceService;
+    private final TransactionManager transactionManager;
 
     public ArticleServiceImpl() {
-        this(new ArticleDaoImpl());
+        this(new ArticleDaoImpl(), new MediaReferenceServiceImpl(), new JdbcTransactionManager());
     }
 
     public ArticleServiceImpl(ArticleDao articleDao) {
+        this(articleDao, new MediaReferenceServiceImpl(), new JdbcTransactionManager());
+    }
+
+    public ArticleServiceImpl(
+            ArticleDao articleDao,
+            MediaReferenceService mediaReferenceService,
+            TransactionManager transactionManager
+    ) {
         this.articleDao = Objects.requireNonNull(articleDao, "articleDao 不能为空");
+        this.mediaReferenceService = Objects.requireNonNull(
+                mediaReferenceService, "mediaReferenceService 不能为空");
+        this.transactionManager = Objects.requireNonNull(
+                transactionManager, "transactionManager 不能为空");
     }
 
     @Override
@@ -64,9 +87,21 @@ public class ArticleServiceImpl implements ArticleService {
             article.setStatus(1); // 默认发布
         }
 
-        // 插入数据库
-        boolean success = articleDao.insert(article);
-        return success ? null : "发布文章失败";
+        try {
+            transactionManager.inTransaction(connection -> {
+                if (!articleDao.insert(connection, article) || article.getId() == null) {
+                    throw new SQLException("新增文章未生成有效 ID");
+                }
+                mediaReferenceService.syncArticleReferences(
+                        connection, article.getId(), article.getContent(), article.getCoverImage());
+                return true;
+            });
+            return null;
+        } catch (TransactionException e) {
+            LOGGER.error("[ArticleServiceImpl#publish] 发布文章事务失败，userId={}，categoryId={}",
+                    article.getUserId(), article.getCategoryId(), e);
+            return "发布文章失败";
+        }
     }
 
     @Override
@@ -96,13 +131,36 @@ public class ArticleServiceImpl implements ArticleService {
         // 更新与新增使用相同白名单，保证历史编辑不会重新引入可执行标记。
         article.setContent(HtmlContentSanitizer.sanitize(article.getContent()));
 
-        boolean success = articleDao.update(article);
-        return success ? null : "更新文章失败";
+        try {
+            transactionManager.inTransaction(connection -> {
+                if (!articleDao.update(connection, article)) {
+                    throw new SQLException("更新文章没有影响任何行");
+                }
+                mediaReferenceService.syncArticleReferences(
+                        connection, article.getId(), article.getContent(), article.getCoverImage());
+                return true;
+            });
+            return null;
+        } catch (TransactionException e) {
+            LOGGER.error("[ArticleServiceImpl#update] 更新文章事务失败，articleId={}", article.getId(), e);
+            return "更新文章失败";
+        }
     }
 
     @Override
     public boolean delete(Integer articleId) {
-        return articleDao.delete(articleId);
+        try {
+            transactionManager.inTransaction(connection -> {
+                if (!articleDao.delete(connection, articleId)) {
+                    throw new SQLException("删除文章没有影响任何行");
+                }
+                return true;
+            });
+            return true;
+        } catch (TransactionException e) {
+            LOGGER.error("[ArticleServiceImpl#delete] 删除文章事务失败，articleId={}", articleId, e);
+            return false;
+        }
     }
 
     @Override
@@ -192,7 +250,19 @@ public class ArticleServiceImpl implements ArticleService {
         if (ids == null || ids.length == 0) {
             return false;
         }
-        return articleDao.batchDelete(ids);
+        try {
+            transactionManager.inTransaction(connection -> {
+                if (!articleDao.batchDelete(connection, ids)) {
+                    throw new SQLException("批量删除文章没有影响任何行");
+                }
+                return true;
+            });
+            return true;
+        } catch (TransactionException e) {
+            LOGGER.error("[ArticleServiceImpl#batchDelete] 批量删除文章事务失败，batchSize={}",
+                    ids.length, e);
+            return false;
+        }
     }
 
     @Override
