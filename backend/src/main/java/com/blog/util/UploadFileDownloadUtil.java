@@ -38,14 +38,29 @@ public final class UploadFileDownloadUtil {
         return downloadPath;
     }
 
-    public static String buildContentDisposition(String fileName) {
-        String fallbackFileName = fileName
-                .replace("\\", "_")
-                .replace("/", "_")
-                .replace("\"", "'");
-        String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
-                .replace("+", "%20");
+    public static String sanitizeDownloadName(String originalName, String fallbackName) {
+        if (originalName == null || originalName.isBlank()) return fallbackName;
 
-        return "attachment; filename=\"" + fallbackFileName + "\"; filename*=UTF-8''" + encodedFileName;
+        String name = originalName.replace('\\', '/');
+        name = name.substring(name.lastIndexOf('/') + 1);
+        name = name.replaceAll("[\\p{Cntrl}\"<>:|?*]", "_").strip();
+        name = name.replaceAll("[. ]+$", "");
+
+        return name.isBlank() || ".".equals(name) || "..".equals(name)
+                ? fallbackName
+                : name;
+    }
+
+    public static String buildContentDisposition(String fileName) {
+        String safeName = sanitizeDownloadName(fileName, "attachment");
+
+        // ASCII 备用名保证容器可输出响应头，完整原名由 filename* 承载。
+        String asciiName = safeName.replaceAll("[^A-Za-z0-9._ -]", "_");
+        String encodedName = URLEncoder.encode(safeName, StandardCharsets.UTF_8)
+                .replace("+", "%20")
+                .replace("*", "%2A");
+
+        return "attachment; filename=\"" + asciiName
+                + "\"; filename*=UTF-8''" + encodedName;
     }
 }

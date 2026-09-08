@@ -3,6 +3,7 @@ package com.blog.media.dao;
 import com.blog.media.model.ManagedMediaKey;
 import com.blog.media.model.MediaAsset;
 import com.blog.media.model.MediaReferenceType;
+import com.blog.media.model.MediaType;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -15,6 +16,17 @@ import java.util.Set;
 public interface MediaDao {
 
     long insert(Connection connection, MediaAsset asset) throws SQLException;
+
+    /**
+     * 兼容只实现生命周期操作的旧适配器；未实现查询时必须报错，不能伪装成没有元数据。
+     */
+    default Optional<String> findOriginalName(
+            Connection connection,
+            MediaType mediaType,
+            String urlFileName
+    ) throws SQLException {
+        throw new UnsupportedOperationException("当前 MediaDao 未实现附件原名查询");
+    }
 
     /**
      * 回填已存在资产的元数据和状态；更新必须带预期旧状态，避免覆盖并发清理状态。

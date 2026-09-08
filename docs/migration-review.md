@@ -39,6 +39,13 @@
 - Playwright 冒烟测试只读取当前数据库；写入型注册、资料、文章、评论和后台操作需配置独立测试库后执行。
 - 本次在完整备份当前数据库后，仅执行 `database/migrations/2026-08-25-add-user-bio.sql`，为 `user` 表增加可空的 `bio VARCHAR(200)` 字段；没有运行 `init-database.sql`，也没有执行媒体生命周期迁移、历史回填或清理器。
 
+## 2026-09-08 附件原名下载修复（10.3）
+
+- 下载链路已接入现有 `media_asset.original_name`，保留 UUID URL、物理路径和登录权限；原名经清洗后通过 ASCII `filename` 与 UTF-8 `filename*` 输出，旧附件缺少有效原名时兜底，查询故障明确返回 500。
+- 执行任务完成前端 lint、13 项 Vitest、生产构建及 WAR 打包；独立审查重跑后端共 169 项测试，168 项通过、1 项真实数据库兼容测试按配置跳过，失败和错误均为 0。补充 8 组文件名编码往返及控制字符检查通过。
+- V-01 已补齐两份附件实际落盘证据：管理员下载 `opencode.pdf`，普通用户下载 `WSL.docx`，文件名、大小及 SHA-256 与对应服务器附件一致；未登录请求返回 401。自动化 Edge 受客户端拦截，手动下载补齐了实际落盘验收。
+- 此验收不等同于 10.2 的数据库迁移、历史回填或并发清理验收，也不表示所有特殊文件名和重新部署场景都已在浏览器验证。证据来源和覆盖限制见 [附件下载验收记录](attachment-download-verification.md)。
+
 ## 最终清理
 
 经用户明确授权，旧 JSP、页面型 Servlet、`AuthFilter`/`AdminFilter`、旧页面专用测试与静态资源已删除；JSP API、JSTL 及仅由旧页面控制器使用的 POI、Commons FileUpload、Commons IO 依赖也已移除。`web.xml` 只保留全局 UTF-8 编码、Session 时长和 Vue `index.html` 欢迎页配置。发布候选文件不包含真实数据库配置、数据库备份、本机验收记录或运行时上传内容。

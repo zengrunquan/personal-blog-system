@@ -95,6 +95,8 @@ Vite 会把 `/api` 与 `/uploads` 代理到 Tomcat 的 `/personal_blog_system_wa
 
 在当前开发机上，上传根目录的绝对路径是 `D:\work\local_repository\javaweb\zrq_231124081\personal-blog-system\docs\uploads`。应用会从当前工作目录和类加载位置向上识别项目根目录，并在首次上传或读取文件时自动创建根目录及 `image`、`file` 子目录；因此 IDEA 重新构建或重新部署 exploded WAR 不会改变默认位置。物理文件通过目录和前缀双重分类：头像使用 `image\avatar_*`、文章图片使用 `image\image_*`、私有附件使用 `file\file_*`；数据库和浏览器 URL 仍使用不带物理前缀的 UUID 文件名。头像和文章图片继续通过 `/uploads/*` 读取，附件只能通过要求登录的 `/api/files/{name}/download` 下载。
 
+附件下载会读取 `media_asset.original_name`，通过安全的 UTF-8 `filename*` 返回原始建议名；UUID 继续用于 URL 和物理存储。旧附件缺少有效原名时保留稳定文件名，数据库查询失败则返回 `500 / INTERNAL_ERROR`，不会静默降级下载。10.3 的自动化回归及两份实际附件落盘验收已完成，覆盖范围见 [附件下载验收记录](docs/attachment-download-verification.md)。
+
 其他开发机或部署环境可通过环境变量覆盖默认目录：
 
 ```powershell

@@ -71,8 +71,10 @@ POST /api/uploads/files ────┘       │
 - 上传根目录可由 JVM 参数 `blog.upload.dir` 或环境变量 `BLOG_UPLOAD_DIR` 覆盖，默认使用 `<项目根目录>\docs\uploads`。代码会从当前工作目录和类加载位置向上识别包含 `backend/pom.xml` 与 `frontend/package.json` 的项目根目录，避免 IDEA/Tomcat 工作目录变化导致写入位置漂移。
 - 应用首次访问存储时调用 `Files.createDirectories` 自动创建上传根目录及 `image`、`file` 子目录，并显式检查每个目录的类型和写权限。
 - 头像与文章图片存入 `image/`，附件存入 `file/`；物理文件名继续使用 `avatar_`、`image_`、`file_` 前缀，以保持现有 URL 映射并进一步明确类型边界。
-- 数据库仍只保存无物理前缀的头像 URL 和文章 HTML 中的资源 URL，不保存文件二进制；公共媒体和附件接口负责把 URL 文件名映射到对应物理前缀，因此物理目录变化不影响浏览器 URL。
+- 数据库仍只保存无物理前缀的头像 URL 和文章 HTML 中的资源 URL，不保存文件二进制；公共媒体和附件接口负责把 URL 文件名映射到对应物理前缀，因此物理目录变化不影响浏览器 URL。UUID URL 文件名负责稳定定位和存储映射，不承担用户下载展示名。
 - `media_asset` 记录媒体类型、物理名、URL 文件名、原始名、MIME、大小、SHA-256、上传人和生命周期状态；`media_reference` 记录 `USER_AVATAR`、`ARTICLE_CONTENT`、`ARTICLE_COVER` 引用。`ARTICLE_CONTENT` 允许头像、文章图片和附件，`ARTICLE_COVER` 只允许文章图片，`USER_AVATAR` 只允许头像。文章保存会在同一 JDBC 事务内更新文章和引用，数据库失败后上传服务补偿删除新文件。
+- 附件下载在文件存在且物理名前缀验证通过后，以 `ATTACHMENT + url_file_name` 查询 `media_asset.original_name`；查询事务在文件流输出前结束，不持有文件流期间的行锁。原名为空、历史附件无元数据或清洗后不可用时回退到稳定 UUID URL 文件名，数据库查询失败则返回 `500 / INTERNAL_ERROR`，不降级输出文件。
+- 下载响应的 `Content-Disposition` 同时提供 ASCII 备用 `filename` 和 UTF-8 编码的 `filename*`；原名只用于响应头且会先移除客户端路径段、控制字符及响应头危险字符，不参与物理路径解析。
 - 文章/用户/分类级联删除只移除引用，绝不在请求线程删除物理文件；零引用 `ACTIVE` 进入 `DELETE_PENDING`，清理器提交认领后在事务外删除，再以 claim token 标记 `DELETED` 或 `DELETE_FAILED`。共享文件只有最后一个引用消失并经过缓冲期才会删除。
 - 历史回填默认 dry-run；`--apply` 只新增元数据、补齐引用，不移动、重命名或删除历史文件。回填必须解析到已存在且可读的上传根目录，无法确认根目录或读取用户/文章数据失败时立即停止；报告会带规范化绝对路径和安全的数据源摘要。无法识别的文件进入人工复核，`LEGACY_PROTECTED` 与 `MISSING_BINARY` 永远不自动删除。
 - 上传目录位于源码项目的 `docs/uploads/`，但独立于 Maven `target`、WAR 和 Tomcat `docBase`，重新构建或部署不会清理业务文件；该目录被 Git 忽略。

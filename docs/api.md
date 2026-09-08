@@ -54,7 +54,7 @@ type ApiResponse<T> =
 | GET | `/api/me/articles` | 当前用户文章分页 |
 | POST | `/api/uploads/images` | 富文本图片，最大 5 MB |
 | POST | `/api/uploads/files` | 附件，最大 10 MB |
-| GET | `/api/files/{name}/download` | 下载附件 |
+| GET | `/api/files/{name}/download` | 下载附件；`{name}` 保持稳定的 UUID URL 文件名 |
 
 上传成功仍返回 HTTP `201`，数据字段保持兼容：
 
@@ -68,7 +68,7 @@ interface UploadResult {
 }
 ```
 
-上传服务会同时登记 `media_asset` 的 `TEMP` 元数据；文章保存或头像替换成功后才登记业务引用。该生命周期登记不新增前端端点和请求字段，附件下载仍要求登录，且仍使用 UUID 文件名而不是原始文件名。
+上传服务会同时登记 `media_asset` 的 `TEMP` 元数据；文章保存或头像替换成功后才登记业务引用。该生命周期登记不新增前端端点和请求字段。附件下载仍要求登录，服务器使用已验证的 UUID URL 文件名查询 `media_asset.original_name`，并通过 UTF-8 `filename*` 返回原始下载建议名；缺少有效元数据时回退到 UUID 文件名。媒体元数据查询失败返回 `500 / INTERNAL_ERROR`，不会输出附件内容。
 
 ## 管理后台
 

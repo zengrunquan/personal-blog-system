@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -80,6 +81,68 @@ public class MediaDaoImplTest {
         assertTrue(sql.getValue().contains("FOR UPDATE"));
         verify(statement).setString(1, "ATTACHMENT");
         verify(statement).setString(2, "file-1.pdf");
+    }
+
+    @Test
+    public void findOriginalNameShouldBindAttachmentAndNotLockRow() throws Exception {
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        ResultSet resultSet = mock(ResultSet.class);
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getString("original_name")).thenReturn("课程笔记.pdf");
+
+        assertEquals("课程笔记.pdf", new MediaDaoImpl().findOriginalName(
+                connection,
+                MediaType.ATTACHMENT,
+                "12345678.pdf"
+        ).orElse(null));
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(connection).prepareStatement(sql.capture());
+        assertTrue(sql.getValue().contains("SELECT original_name FROM media_asset"));
+        assertTrue(sql.getValue().contains("media_type = ? AND url_file_name = ?"));
+        assertFalse(sql.getValue().toUpperCase().contains("FOR UPDATE"));
+        verify(statement).setString(1, MediaType.ATTACHMENT.name());
+        verify(statement).setString(2, "12345678.pdf");
+        verify(resultSet).close();
+        verify(statement).close();
+    }
+
+    @Test
+    public void findOriginalNameShouldReturnEmptyWhenAssetDoesNotExist() throws Exception {
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        ResultSet resultSet = mock(ResultSet.class);
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(false);
+
+        assertTrue(new MediaDaoImpl().findOriginalName(
+                connection,
+                MediaType.ATTACHMENT,
+                "missing.pdf"
+        ).isEmpty());
+
+        verify(resultSet).close();
+        verify(statement).close();
+    }
+
+    @Test
+    public void findOriginalNameShouldPropagateSqlFailure() throws Exception {
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
+        when(statement.executeQuery()).thenThrow(new SQLException("media query failed"));
+
+        assertThrows(SQLException.class, () -> new MediaDaoImpl().findOriginalName(
+                connection,
+                MediaType.ATTACHMENT,
+                "12345678.pdf"
+        ));
+
+        verify(statement).close();
     }
 
     @Test

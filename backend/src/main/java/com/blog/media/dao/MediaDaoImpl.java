@@ -55,6 +55,24 @@ public class MediaDaoImpl implements MediaDao {
     }
 
     @Override
+    public Optional<String> findOriginalName(
+            Connection connection,
+            MediaType mediaType,
+            String urlFileName
+    ) throws SQLException {
+        String sql = "SELECT original_name FROM media_asset "
+                + "WHERE media_type = ? AND url_file_name = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, mediaType.name());
+            statement.setString(2, urlFileName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) return Optional.empty();
+                return Optional.ofNullable(resultSet.getString("original_name"));
+            }
+        }
+    }
+
+    @Override
     public void reconcileBackfillAsset(
             Connection connection,
             MediaAsset asset,
