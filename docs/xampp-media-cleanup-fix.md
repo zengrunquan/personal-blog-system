@@ -1,38 +1,25 @@
-# XAMPP 媒体清理兼容修复（2026-09-07）
+# 数据库兼容性说明：MySQL / MariaDB
 
-## 环境和原因
+XAMPP 中提供的数据库可能是 MariaDB，不能仅凭“mysql”目录名或新下载的安装包判断正在连接的服务版本。通过项目所连接的数据库执行只读查询 `SELECT VERSION();` 核实。
 
-本机实际路径为 `D:\dev_tools\mysql\XAMPP`。`mysql\bin\mysqld.exe` 为 MariaDB 10.4.32，`mysql_ma\bin\mariadbd.exe` 为 10.6.28；项目 JDBC 连接返回 `5.5.5-10.4.32-MariaDB`。下载新版本并不会让正在运行的服务自动升级。
+## 媒体清理的锁行为
 
-MariaDB 10.4 不支持 `FOR UPDATE SKIP LOCKED`。清理器在应用启动 1 分钟后运行，默认后续每隔 60 分钟运行，与登录接口没有直接调用关系。
+MariaDB 10.4 不支持 `FOR UPDATE SKIP LOCKED`。项目认领查询使用普通 `FOR UPDATE`，保留事务、条件更新、无引用检查和 claim token；多个实例会等待行锁，不能假定自动跳过锁。
 
-## 修复
+锁等待超时或认领失败会回滚并向调度器报告异常，后续轮次仍可继续。文件删除在认领事务提交之后执行。清理任务由后台 Listener 调度，与登录接口没有直接调用关系；启用时首次延迟约 1 分钟，后续默认间隔 60 分钟。
 
-- 认领查询改用 `FOR UPDATE`，保留事务、条件更新、无引用检查和 claim token。多实例会等待行锁，不能再假定会跳过锁；锁等待超时由事务管理器回滚。
-- 准备阶段或认领失败继续向调度器抛出异常，记录“媒体清理轮次异常，后续轮次继续”，不再返回正常空结果并误报轮次完成。
-- 保持文件删除在认领事务提交之后执行。
+这项兼容处理不意味着 MariaDB 所有版本和全部迁移场景均已通过验证。生产使用前还应验证目标数据库的表结构、外键和并发行为。
 
-## 验证和启动
+## 兼容测试
 
-`MediaCleanupServiceTest` 的新增用例在修复前失败；真实数据库临时表用例在修复前复现 `SKIP LOCKED` 语法异常，修复后通过。临时表只对测试连接可见，不修改业务表或上传文件，也不运行业务清理服务。
+默认后端测试不连接真实数据库。`blog.test.media.database` 是显式启用开关；测试读取本地 `db.properties`，需要已有媒体表及创建临时表权限。
 
-在 backend 目录执行：
+如需验证，先准备独立测试数据库、备份并核对连接配置，然后按[工具链指南](java-maven-toolchain.md)设置 JDK 21。在 `backend` 目录执行：
 
 ```powershell
-$env:JAVA_HOME = 'D:/dev_tools/IDEA/IntelliJ IDEA 2024.3.7/jbr'
-./mvnw.cmd '-Dblog.test.media.database=true' package
+.\mvnw.cmd test '-Dblog.test.media.database=true'
 ```
 
-本机使用 Java 21 验证 149 项测试全部通过并生成 WAR。现有 Mockito/Byte Buddy 不支持默认 Java 23；未为本次修复更换测试依赖或修改系统 JAVA_HOME。
+兼容测试使用连接级临时表，检查实际 DAO 的语法、到期和引用筛选、同事务内不重复认领以及回滚，不运行业务清理服务。它不能替代两个独立连接的并发认领验收，后者见[媒体运行手册](media-lifecycle-runbook.md)。
 
-`blog.test.media.database` 默认关闭；开启时读取本机 `db.properties`，需要已存在媒体表及创建临时表权限。该用例验证实际 DAO 的语法、到期和引用筛选、同一事务内不重复认领以及回滚。两个独立连接的并发验收仍按媒体生命周期 runbook 在独立 schema 中执行，不能把临时表测试等同于多连接并发验收。
-
-在 IDEA 重新部署或停止后重新运行 Tomcat，使 JVM 加载新类。无需替换 XAMPP 数据库文件或执行数据库迁移。
-
-## 浏览器 startTime 异常
-
-当前页面只加载项目构建脚本，业务源码和依赖声明中没有 `reportAllChanges`。浏览器实际捕获的匿名脚本堆栈与 [web-vitals #792](https://github.com/GoogleChrome/web-vitals/issues/792) 的行列号一致；该报告指向 Chromium DevTools 注入的性能监测脚本在单页路由切换时出错。
-
-本轮刷新页面并在现有登录态下切换文章、我的文章页面后，未观察到新增的同类异常。此结果不是浏览器上游代码已修复的证明。
-
-若打开 Performance 面板后再次出现，关闭 DevTools 并刷新页面再试；如当前版本提供实时指标开关，可关闭该采集功能。浏览器升级是否包含修复需核对后续版本，不能通过修改本项目登录函数修复浏览器内置脚本。不要添加全局错误屏蔽器掩盖异常。
+代码更新后需重新打包并重启或重新部署 Tomcat，才能加载新类。仅为验证认领查询无需更换数据库安装文件；是否需要结构迁移，应按[升级说明](migration-review.md)单独核对。

@@ -1,185 +1,56 @@
 # 个人博客系统
 
-一个前后端分离的个人博客：读者端、用户中心和管理后台均使用 Vue 3，后端保留 Java 11、Servlet、Service、DAO、JDBC、MySQL 与 `JSESSIONID` Session。
-
-## 架构
+基于 Vue 3 与 Java Servlet 的前后端分离博客，包含文章阅读与评论、用户中心、富文本编辑器和管理后台。
 
 ```text
-浏览器（Vue 3 SPA）
-       │ JSON / X-CSRF-Token / JSESSIONID
-       ▼
-Servlet JSON API → Service → DAO → MySQL
-       │
-       └─ 生产环境把 frontend/dist 打入同一个 WAR
+Vue 3 / TypeScript
+        │ JSON、Session、CSRF Token
+        ▼
+Servlet → Service → DAO / JDBC → MySQL
 ```
+
+生产构建将前端资源合并到同一个 WAR；开发时使用 Vite 代理访问后端。
+
+## 项目结构与环境
 
 ```text
 personal-blog-system/
-├── backend/               # Java 11、Servlet、Service、DAO、JSON API
-├── frontend/              # Vue 3、TypeScript、Vite、Router、Pinia
-├── docs/                  # 架构、接口与迁移审查记录
-├── init-database.sql
-└── README.md
+├── backend/          # Servlet、Service、DAO、测试与 Maven Wrapper
+├── frontend/         # Vue 3、TypeScript、Vite、Pinia、Router
+├── scripts/          # Windows 开发启动脚本及脚本测试
+├── database/         # 数据库迁移
+├── docs/             # 架构、接口、工具链与维护指南
+└── init-database.sql # 新开发库初始化数据
 ```
 
-详细设计见 [docs/architecture.md](docs/architecture.md)，API 见 [docs/api.md](docs/api.md)。
+| 环境 | 要求 |
+| --- | --- |
+| Java | JDK 21 用于开发、测试和运行；Java 11 为编译目标 |
+| Servlet 容器 | 外部 Tomcat 9（Servlet 4 / `javax.servlet`） |
+| Maven | 使用 `backend` 中的 Maven Wrapper |
+| 前端 | Node.js、pnpm；pnpm 版本见 `frontend/package.json` 的 `packageManager` |
+| 数据库 | MySQL 8；MariaDB 使用说明见[兼容性文档](docs/xampp-media-cleanup-fix.md) |
+| 命令行启动脚本 | Windows PowerShell 5.1 或 PowerShell 7 |
 
-## 技术栈
+## 开始使用
 
-- 前端：Vue 3、TypeScript strict、Vite、Vue Router、Pinia、Axios、TipTap、DOMPurify、Lucide、Vitest、Playwright
-- 后端：Java 11、Servlet 4、JDBC、Druid、Log4j2、Gson、OWASP Java HTML Sanitizer
-- 数据库：MySQL 8，保留原有表关系，并通过迁移脚本新增可空的 `user.bio` 字段及媒体资产/引用表
-- 会话：同域 `JSESSIONID`，写请求使用 `X-CSRF-Token`
+以下相对路径均以本仓库根目录为基准。
 
-## 主要功能
+1. **准备数据库。** 仅在新建开发库时使用 [init-database.sql](init-database.sql)。在项目根目录启动 `mysql -u root -p`，进入 MySQL 客户端后执行 `SOURCE init-database.sql;`。已有数据库先阅读[升级与兼容说明](docs/migration-review.md)，不要重新初始化。
+2. **配置连接。** 将 [db.properties.example](backend/src/main/resources/db.properties.example) 复制为同目录的 `db.properties`，填写自己的数据库连接。真实配置被 Git 忽略。
+3. **构建并启动后端。** 按[工具链指南](docs/java-maven-toolchain.md)设置 JDK 21 和 Tomcat 9 路径，依次安装前端依赖、构建前端、运行 `mvnw.cmd package`，最后执行 `scripts/dev-backend.ps1`。脚本不会自动构建。
+4. **访问应用。** 默认地址为 `http://localhost:8080/personal_blog_system_war_exploded/`。IDEA 配置、仅检查环境的 `-Check` 用法和端口排错也见工具链指南。
 
-- 公共端：首页、文章分页、查询参数搜索/分类、文章详情与评论
-- 用户端：登录注册、资料/头像/密码、个人文章、富文本新建与编辑
-- 管理端：仪表盘、用户、文章、批量删除、CSV 导出、分类管理
-- 安全：DTO 脱敏、Session 权限、管理员边界、文章所有权、CSRF、前后端双重 HTML 清洗、上传 MIME 与大小限制
-- 附件：私有目录保存并只允许鉴权下载，避免 HTML 等主动内容被同源直接执行
-- 兼容：旧 JSP 地址通过 `301` 跳转到对应 Vue 路由；前端 GET 路由使用 SPA fallback
-
-## 本地开发
-
-### 1. 数据库
-
-如需新建开发库，可使用：
-
-```bash
-mysql -u root -p < init-database.sql
-```
+如需前端热更新，在另一个终端从项目根目录执行：
 
 ```powershell
-Copy-Item backend/src/main/resources/db.properties.example `
-  backend/src/main/resources/db.properties
-```
-
-以 [backend/src/main/resources/db.properties.example](backend/src/main/resources/db.properties.example) 为模板，然后编辑本地的 `backend/src/main/resources/db.properties` 数据库连接；真实配置已被 Git 忽略。初始化脚本已包含 `bio` 字段和媒体生命周期表；已有数据库需在完整备份后分别评审并执行 [database/migrations/2026-08-25-add-user-bio.sql](database/migrations/2026-08-25-add-user-bio.sql) 与 [database/migrations/2026-08-31-add-media-lifecycle.sql](database/migrations/2026-08-31-add-media-lifecycle.sql)。初始化脚本和迁移脚本均不会自动执行。
-
-### 2. 启动后端
-
-Windows：
-
-```powershell
-cd backend
-.\mvnw.cmd tomcat7:run-war
-```
-
-macOS / Linux：
-
-```bash
-cd backend
-./mvnw tomcat7:run-war
-```
-
-### 3. 启动前端开发服务器
-
-```bash
 cd frontend
-pnpm install
 pnpm dev
 ```
 
-Vite 会把 `/api` 与 `/uploads` 代理到 Tomcat 的 `/personal_blog_system_war_exploded` 上下文。
+访问 Vite 输出的地址。开发代理固定连接后端 8080 端口，并使用上述应用上下文；后端仍需先启动。IDEA 与命令行不要同时占用 8080。
 
-### 上传文件存储
-
-头像、文章图片和附件不会写入 Maven 的 `target` 或 Tomcat 展开目录，而是按媒体类型存放到项目根目录下的运行时目录。默认结构为：
-
-```text
-<personal-blog-system 项目根目录>\docs\uploads
-├── image\   # 头像 avatar_*、文章图片 image_*
-└── file\    # 附件 file_*
-```
-
-在当前开发机上，上传根目录的绝对路径是 `D:\work\local_repository\javaweb\zrq_231124081\personal-blog-system\docs\uploads`。应用会从当前工作目录和类加载位置向上识别项目根目录，并在首次上传或读取文件时自动创建根目录及 `image`、`file` 子目录；因此 IDEA 重新构建或重新部署 exploded WAR 不会改变默认位置。物理文件通过目录和前缀双重分类：头像使用 `image\avatar_*`、文章图片使用 `image\image_*`、私有附件使用 `file\file_*`；数据库和浏览器 URL 仍使用不带物理前缀的 UUID 文件名。头像和文章图片继续通过 `/uploads/*` 读取，附件只能通过要求登录的 `/api/files/{name}/download` 下载。
-
-附件下载会读取 `media_asset.original_name`，通过安全的 UTF-8 `filename*` 返回原始建议名；UUID 继续用于 URL 和物理存储。旧附件缺少有效原名时保留稳定文件名，数据库查询失败则返回 `500 / INTERNAL_ERROR`，不会静默降级下载。10.3 的自动化回归及两份实际附件落盘验收已完成，覆盖范围见 [附件下载验收记录](docs/attachment-download-verification.md)。
-
-其他开发机或部署环境可通过环境变量覆盖默认目录：
-
-```powershell
-$env:BLOG_UPLOAD_DIR='E:\blog-data\uploads'
-```
-
-也可以使用 JVM 参数 `-Dblog.upload.dir=E:\blog-data\uploads`；JVM 参数优先于环境变量。若部署包已离开源码目录，必须使用其中一种方式明确配置路径。`docs/uploads/` 已加入 `.gitignore`，其中的运行时业务数据不提交到 Git，生产环境仍应单独备份。
-
-历史文件若仍有备份，可在停止应用并备份数据库后复制到新目录，同时只给物理文件添加类型前缀，数据库 URL 不需要修改：
-
-```text
-旧 uploads/avatars/<name>              → <upload-root>/image/avatar_<name>
-旧 uploads/images/<name>               → <upload-root>/image/image_<name>
-旧 WEB-INF/private-uploads/files/<name> → <upload-root>/file/file_<name>
-旧 uploads/files/<name>                → <upload-root>/file/file_<name>
-```
-
-迁移后应按文件数量、大小或哈希核对备份与新目录。只有数据库 URL、没有原始文件或文件备份时，无法恢复已丢失的二进制内容。
-
-### 媒体生命周期治理
-
-上传文件的二进制仍保存在上述 `image/`、`file/` 目录；`media_asset` 保存文件元数据和状态，`media_reference` 保存头像、文章正文及封面引用。
-
-```text
-上传 → 原子写入文件 → media_asset:TEMP（24 小时缓冲）
-                                  │
-文章/头像事务成功 ────────────────┴→ ACTIVE + media_reference
-                                  │
-引用全部消失 → DELETE_PENDING → 到期认领 → 事务外删除 → DELETED
-```
-
-文章保存会先使用服务端清洗后的 HTML 识别 `img[src]`、`a[href]` 和封面 URL；文章数据与引用在同一 JDBC 事务中提交。数据库事务失败时，新上传文件会执行补偿删除，头像 Session 只在事务提交后更新。清理器使用单线程 daemon Listener，但数据库认领带 token，可安全支持多实例；`LEGACY_PROTECTED`、`MISSING_BINARY` 和历史未知文件不会自动删除。
-
-清理器默认配置为启用、保留 24 小时、每 60 分钟执行、每轮最多 100 个、认领超时 60 分钟。可用 JVM 参数或同名环境变量覆盖，JVM 参数优先：
-
-| JVM 参数 | 环境变量 | 默认值 | 允许范围 |
-| --- | --- | ---: | --- |
-| `blog.media.cleanup.enabled` | `BLOG_MEDIA_CLEANUP_ENABLED` | `true` | `true` / `false` |
-| `blog.media.retention.hours` | `BLOG_MEDIA_RETENTION_HOURS` | `24` | `1..8760` |
-| `blog.media.cleanup.interval.minutes` | `BLOG_MEDIA_CLEANUP_INTERVAL_MINUTES` | `60` | `1..1440` |
-| `blog.media.cleanup.batch.size` | `BLOG_MEDIA_CLEANUP_BATCH_SIZE` | `100` | `1..10000` |
-| `blog.media.claim.timeout.minutes` | `BLOG_MEDIA_CLAIM_TIMEOUT_MINUTES` | `60` | `1..1440` |
-
-非法值（包括零、负数、不可解析值和超出范围的值）会拒绝启动清理器，不会静默回退到危险配置。清理器使用固定延迟调度，每轮会记录认领、删除、缺失文件、失败和耗时汇总。首次启用前必须完成数据库与上传目录备份，并先运行历史回填 dry-run；操作步骤见 [docs/media-lifecycle-runbook.md](docs/media-lifecycle-runbook.md)。
-
-截至 2026-09-03，媒体生命周期实现已完成两轮代码审查：后端 146 项测试和 WAR 打包通过，前端 lint、13 项 Vitest 与生产构建通过，未发现影响 10.2 使用的遗留代码缺陷。真实 MySQL 8 迁移、历史回填和物理清理尚未执行；已有数据库在完成备份、迁移和回填前应关闭清理器，不能把自动化测试通过等同于真实环境已经完成上线。
-
-## 生产构建
-
-```powershell
-cd frontend
-pnpm build
-
-cd ..\backend
-.\mvnw.cmd clean test package
-```
-
-产物为 `backend/target/personal_blog_system_war_exploded.war`，其中包含预先生成的 Vue 构建结果。WAR 文件名、Vite 生产基础路径和 Tomcat Maven 插件均统一使用以下应用上下文：
-
-```text
-/personal_blog_system_war_exploded
-```
-
-## 验证
-
-```powershell
-cd frontend
-pnpm lint
-pnpm test
-pnpm build
-
-$env:E2E_BASE_URL='http://localhost:8080/personal_blog_system_war_exploded/'
-pnpm e2e
-
-cd ..\backend
-.\mvnw.cmd clean test package
-```
-
-会写数据库的完整 CRUD E2E 必须使用独立测试库；默认冒烟测试只执行读取、搜索、旧地址跳转和响应式导航，不改动当前数据库。
-
-## 测试账号
-
-> **安全提示：以下账号仅限本地开发。首次运行后必须立即修改默认密码，禁止用于生产环境。**
+初始化数据提供以下**仅限本地学习**的账号，部署前必须修改默认密码：
 
 | 角色 | 用户名 | 密码 |
 | --- | --- | --- |
@@ -187,21 +58,31 @@ cd ..\backend
 | 普通用户 | `zhangsan` | `user123` |
 | 普通用户 | `lisi` | `user123` |
 
-## 迁移说明
+## 数据与开发约定
 
-- 当前运行数据库已在完整备份后新增可空的 `user.bio` 字段，其他表结构与现有数据保持不变。
-- Vue 是新的页面入口，生产资源与后端同域，不使用 JWT 或跨域配置。
-- 原页面型 Servlet、JSP、旧页面专用 Filter/测试及 JSP/JSTL 等遗留依赖均已移除；旧地址兼容由独立路由策略维护，复核结论见 [docs/migration-review.md](docs/migration-review.md)。
-- 不要提交 `frontend/dist`、`backend/target`、本地上传文件、数据库密码或 IDE 配置。
+- 上传文件默认存于项目内的 `docs/uploads/image/` 和 `docs/uploads/file/`，不随 WAR 重建而删除。部署到源码目录之外时，必须通过 `BLOG_UPLOAD_DIR` 或 `-Dblog.upload.dir` 指定持久化目录；JVM 参数优先。附件需要登录下载，并以安全处理后的原始文件名作为建议下载名。
+- 媒体清理涉及真实数据。开发启动脚本强制关闭清理器；其他启动方式在备份、迁移及回填核对完成前也应关闭。详细配置和操作见[媒体运行手册](docs/media-lifecycle-runbook.md)。
+- 密码使用 BCrypt；旧 MD5 账号登录成功后会自动升级。写接口使用 Session 权限和 CSRF 校验。
+- DAO 和 DBUtil 使用统一数据库错误日志，保留操作上下文与异常堆栈；Service 构造器依赖注入用于替换依赖和测试。
+- 应提交脚本源码、测试、`backend/.mvn/jvm.config` 和项目文档。不提交 `.idea/`、`target/`、`*.class`、`frontend/dist/`、真实数据库配置、备份及 `docs/uploads/`；历史 `src/main/webapp/uploads/` 也继续忽略。
+- 本地 WAR 会包含本地数据库配置，不应直接作为公开下载产物分发；部署凭据需按目标环境管理。
 
-## 后端工程约束
+## 测试与文档
 
-- 密码使用成本因子 12 的 BCrypt 哈希；旧 MD5 账号仅用于兼容，登录成功后会自动升级为 BCrypt。
-- DAO 和 DBUtil 执行统一数据库错误日志策略，错误日志包含类名、方法名、操作上下文和异常堆栈。
-- Service 构造器依赖注入用于替换 DAO 依赖并提高可测试性，同时保留供 Servlet 装配的无参构造器。
-- 仓库卫生规则：不提交 `.idea/`、`target/`、`*.class`、真实 `db.properties`、`.env`、数据库备份和 `docs/uploads/` 运行时上传数据；历史 `src/main/webapp/uploads/`、`backend/src/main/webapp/uploads/` 及对应的 `WEB-INF/private-uploads/` 目录仍被忽略，避免旧运行文件被误提交。
-- 本机打包的 WAR 会包含本地数据库配置，只能用于本机部署；不要把该 WAR 上传到 GitHub Releases 或交给其他环境。如需分发可部署产物，应先把数据库凭据改为由部署环境外部注入。
+前端在 `frontend` 目录执行 `pnpm lint`、`pnpm test`；后端在 `backend` 目录使用 JDK 21 执行 `mvnw.cmd test`。`mvnw.cmd package` 自身也会运行测试。完整 CRUD E2E 和数据库兼容测试须使用独立测试库，不能把单元测试通过视为完成部署验收。
+
+| 文档 | 内容 |
+| --- | --- |
+| [工具链指南](docs/java-maven-toolchain.md) | 环境、构建、启动、IDEA、编码与测试 |
+| [架构说明](docs/architecture.md) | 模块边界、会话、安全与存储设计 |
+| [API 文档](docs/api.md) | 请求、响应及接口约定 |
+| [升级与兼容说明](docs/migration-review.md) | 已有数据库、旧 URL 与历史上传文件升级 |
+| [媒体运行手册](docs/media-lifecycle-runbook.md) | 备份、回填、清理配置与维护验收 |
+| [数据库兼容性说明](docs/xampp-media-cleanup-fix.md) | MySQL / MariaDB 的清理认领与兼容测试 |
+| [附件下载验证指南](docs/attachment-download-verification.md) | 下载文件名、权限与内容一致性验证 |
+
+文档描述当前用法；后续更新应修改对应章节，避免在 README 追加临时排错过程或重复验收记录。
 
 ## 许可证
 
-本项目采用 [MIT License](LICENSE)，允许在保留版权与许可声明的前提下使用、修改和分发。
+[MIT License](LICENSE)。

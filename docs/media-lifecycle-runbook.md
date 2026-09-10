@@ -22,9 +22,23 @@ TEMP ──被文章/头像引用──> ACTIVE ──零引用──> DELETE_PE
 
 文章正文只识别服务端清洗后的 `img[src]`、`a[href]`；封面单独识别。头像、正文、封面和附件引用分别记录为 `USER_AVATAR`、`ARTICLE_CONTENT`、`ARTICLE_COVER`。`ARTICLE_CONTENT` 可以引用头像、文章图片和附件，`ARTICLE_COVER` 仍只能引用文章图片；同一资产可以被多篇文章或多个用户共享。
 
+## 清理配置
+
+JVM 参数优先于对应环境变量。开发启动脚本强制设置 `blog.media.cleanup.enabled=false`；通过其他方式启动时，应用默认启用清理，维护前应显式关闭。
+
+| JVM 参数 | 环境变量 | 默认值 | 允许范围 |
+| --- | --- | --- | --- |
+| `blog.media.cleanup.enabled` | `BLOG_MEDIA_CLEANUP_ENABLED` | `true` | `true` / `false` |
+| `blog.media.retention.hours` | `BLOG_MEDIA_RETENTION_HOURS` | `24` | `1..8760` |
+| `blog.media.cleanup.interval.minutes` | `BLOG_MEDIA_CLEANUP_INTERVAL_MINUTES` | `60` | `1..1440` |
+| `blog.media.cleanup.batch.size` | `BLOG_MEDIA_CLEANUP_BATCH_SIZE` | `100` | `1..10000` |
+| `blog.media.claim.timeout.minutes` | `BLOG_MEDIA_CLAIM_TIMEOUT_MINUTES` | `60` | `1..1440` |
+
+非法值会使清理器拒绝启动并记录错误。备份和维护报告包含真实数据，以下示例将它们放在已被 Git 忽略的 `database/backups/`；仍应另行保存可靠备份。
+
 ## 首次上线门禁
 
-以下步骤必须在停止应用、已获明确授权的独立维护窗口内执行。当前仓库实现阶段没有执行这些写入操作。下面的脚本以 Windows PowerShell 为准；只需先核对数据库账号和实际上传根目录，不能把密码写入脚本。
+以下步骤必须在停止应用、已获明确授权的独立维护窗口内执行。是否需要迁移取决于目标数据库的当前结构。下面的脚本以 Windows PowerShell 为准，从本仓库根目录执行；先按[工具链指南](java-maven-toolchain.md)配置 JDK 21，准备 MySQL 客户端，并核对数据库账号和实际上传根目录，不能把密码写入脚本。各阶段应分开执行并核对结果，不要整篇复制运行。
 
 ### 1. 停止应用并建立可验证备份
 
@@ -33,11 +47,14 @@ TEMP ──被文章/头像引用──> ACTIVE ──零引用──> DELETE_PE
 ```powershell
 Set-StrictMode -Version Latest
 
-$repoRoot = 'D:\work\local_repository\javaweb\zrq_231124081\personal-blog-system'
-$repoRoot = (Resolve-Path -LiteralPath $repoRoot).Path
+$repoRoot = (Get-Location).Path
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'backend\pom.xml')) -or
+    -not (Test-Path -LiteralPath (Join-Path $repoRoot 'frontend\package.json'))) {
+    throw '请从 personal-blog-system 仓库根目录执行维护步骤。'
+}
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$backupRoot = Join-Path $repoRoot "backup\media-lifecycle\$timestamp"
-$reportRoot = Join-Path $repoRoot "docs\media-backfill-reports\$timestamp"
+$backupRoot = Join-Path $repoRoot "database\backups\media-lifecycle\$timestamp"
+$reportRoot = Join-Path $backupRoot 'reports'
 New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
 
@@ -221,7 +238,7 @@ try {
 
 ## 独立 MySQL 8 验收门禁
 
-以下验收必须使用可丢弃的独立 MySQL 8 schema、临时上传根目录和两个独立 JDBC 连接；不能连接生产库，也不能用单元测试替代。当前仓库实现阶段未执行该验收。
+以下验收必须使用可丢弃的独立 MySQL 8 schema、临时上传根目录和两个独立 JDBC 连接；不能连接生产库，也不能用单元测试替代。记录目标环境的实际结果，未执行的场景标记为未验证。
 
 1. 备份或新建测试 schema 后执行迁移脚本，核对 `CHECK`、唯一索引和全部外键。
 2. 建立两个文章共享同一媒体、头像与文章正文共享同一媒体的测试数据；分别删除文章、分类和用户，确认 `media_reference` 按外键级联删除，而 `media_asset` 和物理文件不会被请求线程直接删除。

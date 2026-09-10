@@ -18,8 +18,10 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <maven.compiler.release>11</maven.compiler.release>
-        <tomcat.port>8080</tomcat.port>
-        <tomcat.path>/personal_blog_system_war_exploded</tomcat.path>
+        <mockito.version>5.14.2</mockito.version>
+        <argLine></argLine>
+        <toolchain.test.jvmArgs></toolchain.test.jvmArgs>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>
@@ -33,8 +35,8 @@
 
         <!-- MySQL驱动 -->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
             <version>8.0.33</version>
         </dependency>
 
@@ -88,7 +90,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.12.0</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -96,15 +98,32 @@
     <build>
         <finalName>personal_blog_system_war_exploded</finalName>
         <plugins>
-            <!-- Tomcat Maven插件，方便本地运行 -->
+            <!-- 通过 Maven 解析测试依赖路径，避免把本机 .m2 目录写进配置。 -->
             <plugin>
-                <groupId>org.apache.tomcat.maven</groupId>
-                <artifactId>tomcat7-maven-plugin</artifactId>
-                <version>2.2</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.8.1</version>
+                <executions>
+                    <execution>
+                        <id>resolve-test-agent-path</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 预加载 Mockito agent，避免测试依赖 JDK 的动态 agent 加载。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
                 <configuration>
-                    <port>${tomcat.port}</port>
-                    <path>${tomcat.path}</path>
-                    <uriEncoding>UTF-8</uriEncoding>
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <encoding>UTF-8</encoding>
+                    <argLine>@{argLine} ${toolchain.test.jvmArgs} -javaagent:"${org.mockito:mockito-core:jar}" -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</argLine>
                 </configuration>
             </plugin>
 

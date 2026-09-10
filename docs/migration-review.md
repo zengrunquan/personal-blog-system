@@ -1,53 +1,43 @@
-# Vue 3 迁移审查记录 -- 2026年8月25日，重构项目前端
+# 升级与兼容说明
 
-## 已完成
+本指南面向从旧版本升级的使用者。新建开发环境请从 [README](../README.md) 开始；数据库是否需要迁移取决于目标库结构，不能根据文档推断已经执行过迁移。
 
-- 项目拆分为 `backend/` 与 `frontend/`，原有表关系、DAO 和核心 Service 保持不变；后续仅为用户个人寄语新增可空的 `user.bio` 字段。
-- 公共端、用户中心、富文本编辑器和管理后台均已实现 Vue 路由。
-- 新增 JSON API、DTO 脱敏、统一错误、Session/CSRF、HTML 清洗和上传策略。
-- 旧 URL 兼容跳转与 SPA fallback 已覆盖，API、上传、静态资源、下载和导出被排除。
-- Vue 构建结果已自动打入 WAR；Maven Wrapper 固定为 3.9.16。
-- 视觉在 1024×1536 参考尺寸、1440×1024 和 390×844 下完成截图验收。
+## 数据库升级
 
-## 本次迁移中发现并修复的回归
+先停止应用、关闭媒体清理器，并备份数据库与上传目录。不要对已有数据库重新运行 `init-database.sql`。
 
-1. Gson 省略空 `user` 时，前端曾把 `undefined` 错判为已登录；会话接口现稳定返回 `user: null`，Pinia 也做防御性归一化，并新增回归测试。
-2. 首页 Hero 初版过高且标题在 1024 px 下换行；已重新校准网格、字号、插画比例与区块密度。
-3. 文章列表清空搜索的模板内多语句被格式化后无法解析；已收敛为类型化方法并通过生产构建。
-4. 缺少 favicon 导致浏览器控制台出现 404；已复用真实作者图作为站点图标。
-5. 审查发现附件若直接作为静态资源公开可能形成同源存储型 XSS；附件下载地址强制转到鉴权接口。后续持久化改造将头像和文章图片存入项目 `docs/uploads/image/`，附件存入 `docs/uploads/file/`，并用目录与物理前缀共同阻止附件经公共图片接口读取。
-6. 清理旧页面型 Servlet 前，旧 POST 曾可能绕过新 CSRF 边界；SPA 过滤器现统一以 `410 LEGACY_ENDPOINT_DISABLED` 阻断旧写地址，兼容策略不再依赖旧控制器。
-7. Vite 开发代理现重写 Session Cookie Path，并代理生产上下文资源地址，开发模式可稳定复用 `JSESSIONID`。
-8. SPA fallback 已改为负向排除 API、上传、静态资源、下载和导出，使未知无扩展名地址也进入 Vue 404。
-9. 登录成功会轮换整个 Session 与 CSRF Token，避免 Session fixation；前端用户类型也已与 `UserDto` 的 `role` 字段对齐。
-10. 旧公开附件地址现同时按原始 URI 与容器解码路径拦截整个 `/uploads/files` 命名空间，编码点号、矩阵参数和路径穿越均不能回落到静态资源 Servlet。
-11. 删除旧控制器后补齐真实历史入口：分类表单转到 Vue 分类页，旧下载与导出转到受鉴权 API；旧 GET 注销因会修改 Session 而明确返回 `410 LEGACY_GET_DISABLED`。
-12. 管理端现行 Vue 路由不再被旧路由表重复匹配，避免 `/admin/users`、`/admin/articles`、`/admin/categories` 自重定向；分类页会读取兼容查询参数并恢复新增或编辑表单。
-13. 首页“关于我”改为读取当前用户头像、邮箱和个人寄语；访客使用默认头像与默认寄语并隐藏邮箱，未编辑资料的登录用户同样使用默认头像和寄语。个人资料编辑页新增最多 200 字的寄语字段。
-14. 发布前复核发现 Maven 产物名与前端固定上下文不一致；WAR 现统一命名为 `personal_blog_system_war_exploded.war`，并补齐真实数据库配置、环境变量和私有附件目录的 Git 忽略边界。
-15. 上传文件原先经 `ServletContext.getRealPath` 写入 exploded WAR，重新构建或部署会留下数据库 URL 但删除物理文件；现改为可配置的持久化目录，缺失的根目录及 `image`、`file` 子目录自动创建，默认根路径为 `<项目根目录>\docs\uploads`。项目根目录通过源码标识文件稳定定位，不依赖 IDEA/Tomcat 当前工作目录；数据库 URL 保持无前缀文件名，磁盘文件按类型进入对应子目录并增加前缀，历史备份可迁移恢复而无需修改数据库。
-16. 本次补齐 `media_asset`、`media_reference`、同事务文章/头像引用和带 claim token 的延迟清理；新文件先进入 `TEMP`，数据库失败执行物理补偿，历史未知文件标记保护而不自动删除。初始化 SQL 已内联媒体表结构，单独迁移与历史回填命令只在备份并获用户授权后执行。
+| 目标结构 | 迁移文件 |
+| --- | --- |
+| 用户个人寄语 `user.bio` | [新增 bio 字段](../database/migrations/2026-08-25-add-user-bio.sql) |
+| 媒体资产与引用表 | [媒体生命周期结构](../database/migrations/2026-08-31-add-media-lifecycle.sql) |
 
-## 验证边界
+先核对已有结构，再选择所需迁移；不要盲目重复执行。媒体历史回填、人工核对和启用清理的顺序见[媒体运行手册](media-lifecycle-runbook.md)。数据库备份和迁移结果应保存在自己的维护记录中，不提交真实数据。
 
-- 后端单元测试覆盖统一响应、CSRF、权限过滤、HTML 清洗、上传策略、路由策略、密码与依赖注入。
-- 前端单元测试覆盖响应解包、Session、路由守卫、文章组件、首页资料展示和个人资料查看/编辑。
-- Vue 3 迁移阶段的最终验证为后端 82 项测试、前端 13 项 Vitest、TypeScript 严格检查、生产构建和 WAR 打包全部通过。前端 ESLint 的 CRLF/Prettier 基线已在后续提交 `b6e5b17` 中统一为 LF，零警告门禁现已恢复。
-- 2026-09-03 媒体生命周期二次复审后，后端测试总数增至 146 项，0 failures、0 errors、0 skipped，WAR 打包成功；前端 lint、13 项 Vitest 和生产构建再次通过。此前审查发现的头像正文共享引用、回填 fail-closed、状态协调、清理配置/调度及运行手册问题均已修复，未发现影响 10.2 使用的新增代码缺陷。
-- 上述结论仅覆盖源码和自动化测试。真实 MySQL 8 的迁移、外键级联、并发认领、到期边界、历史回填及物理删除仍须按 `docs/media-lifecycle-runbook.md` 在独立测试环境和获授权的维护窗口验证。
-- Playwright 在桌面与 390 px 手机项目共执行 8 项：7 项通过，1 项按设计仅在手机项目运行而在桌面项目跳过。
-- Playwright 冒烟测试只读取当前数据库；写入型注册、资料、文章、评论和后台操作需配置独立测试库后执行。
-- 本次在完整备份当前数据库后，仅执行 `database/migrations/2026-08-25-add-user-bio.sql`，为 `user` 表增加可空的 `bio VARCHAR(200)` 字段；没有运行 `init-database.sql`，也没有执行媒体生命周期迁移、历史回填或清理器。
+## 页面与接口兼容
 
-## 2026-09-08 附件原名下载修复（10.3）
+- 页面统一由 Vue 3 提供，原 JSP 和页面型 Servlet 已移除。旧页面 GET 地址按路由策略重定向；旧写地址返回 `410`，旧 GET 注销也被禁用。
+- `FrontendRoutePolicy` 与 `SpaRoutingFilter` 维护兼容和 SPA fallback；API、上传、静态资源、下载及导出不会回落到 Vue 页面。
+- 前后端使用同域 Session、`JSESSIONID` 与 CSRF Token。调用方应使用当前 [JSON API](api.md)，不要继续提交旧页面表单。
+- 生产应用上下文固定为 `/personal_blog_system_war_exploded`，前端构建与 WAR 部署需保持一致。
+- 开发运行环境为 JDK 21 和外部 Tomcat 9，配置见[工具链指南](java-maven-toolchain.md)。
 
-- 下载链路已接入现有 `media_asset.original_name`，保留 UUID URL、物理路径和登录权限；原名经清洗后通过 ASCII `filename` 与 UTF-8 `filename*` 输出，旧附件缺少有效原名时兜底，查询故障明确返回 500。
-- 执行任务完成前端 lint、13 项 Vitest、生产构建及 WAR 打包；独立审查重跑后端共 169 项测试，168 项通过、1 项真实数据库兼容测试按配置跳过，失败和错误均为 0。补充 8 组文件名编码往返及控制字符检查通过。
-- V-01 已补齐两份附件实际落盘证据：管理员下载 `opencode.pdf`，普通用户下载 `WSL.docx`，文件名、大小及 SHA-256 与对应服务器附件一致；未登录请求返回 401。自动化 Edge 受客户端拦截，手动下载补齐了实际落盘验收。
-- 此验收不等同于 10.2 的数据库迁移、历史回填或并发清理验收，也不表示所有特殊文件名和重新部署场景都已在浏览器验证。证据来源和覆盖限制见 [附件下载验收记录](attachment-download-verification.md)。
+## 历史上传文件
 
-## 最终清理
+持久化目录默认是项目的 `docs/uploads/`，可通过 `BLOG_UPLOAD_DIR` 或 JVM 参数 `blog.upload.dir` 覆盖；后者优先。离开源码目录部署时必须显式配置。不要把上传文件继续放在 Maven 或 Tomcat 的构建展开目录中。
 
-经用户明确授权，旧 JSP、页面型 Servlet、`AuthFilter`/`AdminFilter`、旧页面专用测试与静态资源已删除；JSP API、JSTL 及仅由旧页面控制器使用的 POI、Commons FileUpload、Commons IO 依赖也已移除。`web.xml` 只保留全局 UTF-8 编码、Session 时长和 Vue `index.html` 欢迎页配置。发布候选文件不包含真实数据库配置、数据库备份、本机验收记录或运行时上传内容。
+若旧文件仍有备份，在停止应用、备份数据库和文件后，按类型复制到当前上传根目录：
 
-旧 GET 地址的 `301` 兼容与旧写地址的 `410` 阻断继续由 `FrontendRoutePolicy` 和 `SpaRoutingFilter` 维护，因此历史链接仍可迁移到 Vue 页面，但仓库不再包含可执行的 JSP 页面分支。
+```text
+旧 uploads/avatars/<name>              → <upload-root>/image/avatar_<name>
+旧 uploads/images/<name>               → <upload-root>/image/image_<name>
+旧 WEB-INF/private-uploads/files/<name> → <upload-root>/file/file_<name>
+旧 uploads/files/<name>                → <upload-root>/file/file_<name>
+```
+
+只有物理文件增加类型前缀，数据库 URL 仍使用原稳定文件名。迁移后核对数量、大小及哈希；若目标文件已存在，先核对内容，不能直接覆盖。仅有数据库 URL 无法恢复已经丢失的二进制文件。
+
+附件原始名称来自 `media_asset.original_name`，只影响下载建议名，不改变 UUID URL、物理路径或登录权限。缺少有效原名时使用稳定文件名；查询失败返回错误。验证方法见[附件下载验证指南](attachment-download-verification.md)。
+
+## 升级后验证
+
+先运行前后端测试并构建 WAR，再检查页面、会话、旧地址跳转和已有媒体读取。写入型 E2E、迁移及清理验收应在独立测试环境进行；单元测试不能替代真实数据库外键、并发认领和物理文件验证。
